@@ -1,15 +1,87 @@
 """CourseCompass backend entry point."""
 
+from __future__ import annotations
+
+import os
+from datetime import datetime
+from datetime import timezone
+
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.api.errors import register_exception_handlers
+from app.api.v1 import admin_ingest
+from app.api.v1 import query
+from app.config import Settings
+from app.config import load_settings
 
 
-def create_app() -> FastAPI:
+def create_app(settings: Settings | None = None) -> FastAPI:
     """Builds the FastAPI application.
 
-    Registers the v1 routers (query, admin ingest) and the error handlers
-    that return the standard error envelope.
+    Registers the v1 routers (query, admin ingest), health probes used by
+    Cloud Run, and the error handlers that return the standard error
+    envelope.
+
+    Args:
+        settings: Optional preloaded settings. When omitted, settings are
+            loaded from the environment.
 
     Returns:
         The configured FastAPI application.
     """
-    raise NotImplementedError
+    settings = settings or load_settings()
+
+    application = FastAPI(
+        title=settings.app_name,
+        version='0.1.0',
+        description='CourseCompass advising API',
+    )
+    application.state.settings = settings
+
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=list(settings.cors_origins),
+        allow_credentials=True,
+        allow_methods=['*'],
+        allow_headers=['*'],
+    )
+
+    register_exception_handlers(application)
+    application.include_router(query.router)
+    application.include_router(admin_ingest.router)
+
+    @application.get('/health')
+    def health() -> dict[str, str]:
+        """Liveness probe for Cloud Run and local checks."""
+        return {'status': 'ok'}
+
+    @application.get('/ready')
+    def ready() -> dict[str, str]:
+        """Readiness probe. Extend with dependency checks later."""
+        return {'status': 'ready'}
+
+    @application.get('/')
+    def root() -> dict[str, str]:
+        """Minimal root response for smoke tests."""
+        return {
+            'service': settings.app_name,
+            'environment': settings.environment,
+            'status': 'running',
+        }
+
+    @application.get('/api/info')
+    def info() -> dict[str, str]:
+        """Runtime metadata helpful when verifying a Cloud Run revision."""
+        return {
+            'service': settings.app_name,
+            'environment': settings.environment,
+            'revision': os.getenv('K_REVISION', 'local'),
+            'cloud_service': os.getenv('K_SERVICE', 'local'),
+            'time_utc': datetime.now(timezone.utc).isoformat(),
+        }
+
+    return application
+
+
+app = create_app()
