@@ -48,9 +48,11 @@ backend/
     repositories/   data access interfaces
     ingestion/      data source ingestion interface (QA-04)
   tests/            pytest
+  Dockerfile        Cloud Run container image (SCRUM-11)
 frontend/           React + Vite app (chat UI: SCRUM-9)
 migrations/         node-pg-migrate schema migrations
 seeds/              dev/test-only seed data
+scripts/            gcloud auth + Cloud Run deploy helpers
 docs/               open questions for the team
 ```
 
@@ -84,10 +86,44 @@ renders each message through a `MessageRenderer` picked by message type
 (`src/components/renderers/`). `ChatService` talks to the backend through
 the `APIClient` and `AuthService` interfaces (`src/services/`).
 
-### Backend and database
+### Backend (FastAPI)
 
-TBD. Local database setup is an open question. The dependency versions in
-`migrations/package.json` are set to `latest` until the team pins them.
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
+```
+
+Smoke checks:
+
+```bash
+curl http://127.0.0.1:8080/health
+curl http://127.0.0.1:8080/api/info
+pytest
+```
+
+Domain routes such as `POST /api/v1/query` are still stubs and return
+`501 NOT_IMPLEMENTED` with the standard error envelope.
+
+### Deploy backend to Cloud Run
+
+Requires `gcloud` authenticated to a project with billing enabled.
+
+```bash
+chmod +x scripts/*.sh
+export GCP_PROJECT_ID="your-gcp-project-id"
+# Optional: GCP_REGION=us-central1 SERVICE_NAME=coursecompass-api
+./scripts/auth-gcp.sh          # or: ./scripts/auth-gcp.sh --login
+./scripts/deploy-backend.sh
+```
+
+The deploy script builds `backend/Dockerfile` with Cloud Build and deploys
+the image to Cloud Run (`--allow-unauthenticated` for staging smoke tests).
+
+Local database setup is still an open question. Frontend `package.json`
+dependency versions remain `latest` until the team pins them.
 
 ## Git workflow
 

@@ -5,8 +5,9 @@ purpose, so the team can decide together.
 
 1. **Local database setup.** Docker, a native Postgres + pgvector install, or
    a shared dev database?
-2. **Backend container build for Cloud Run.** A Dockerfile, or
-   `gcloud run deploy --source`?
+2. **Backend container build for Cloud Run.** ~~A Dockerfile, or
+   `gcloud run deploy --source`?~~ **Decided (SCRUM-11):** Dockerfile in
+   `backend/` + Cloud Build (`scripts/deploy-backend.sh`).
 3. **CI provider and workflow.** The Detailed Design says migrations run in CI
    before the test suite, but it doesn't name a CI provider.
 4. **Database driver or ORM** for the repository implementations.
