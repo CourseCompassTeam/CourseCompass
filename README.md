@@ -1,10 +1,10 @@
 # CourseCompass
 
-An AI advising chatbot for Regis University MSSE students. Students can ask
-about degree progress, course descriptions, and recommendations, and get
-routed to advising or career services when a question is out of scope.
+An AI advising chatbot for graduate students. Students can ask about degree
+progress, course descriptions, and recommendations, and get routed to
+advising or career services when a question is out of scope.
 
-Built by Team Production Ready for MSSE692.
+Built by Team Production Ready.
 
 > **Status:** project scaffold only. The files contain structure, signatures,
 > and docstrings, not working logic. Decisions the team hasn't made yet are
