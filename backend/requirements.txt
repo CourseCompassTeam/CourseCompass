@@ -1,0 +1,4 @@
+# Versions not pinned yet (see docs/OPEN_QUESTIONS.md).
+fastapi
+uvicorn
+pytest

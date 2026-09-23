@@ -1,0 +1,11 @@
+{
+  "name": "coursecompass-migrations",
+  "private": true,
+  "description": "Database schema migrations (node-pg-migrate).",
+  "scripts": {
+    "migrate": "node-pg-migrate"
+  },
+  "devDependencies": {
+    "node-pg-migrate": "latest"
+  }
+}
