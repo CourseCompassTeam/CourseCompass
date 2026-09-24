@@ -29,4 +29,6 @@ purpose, so the team can decide together.
 9. **Python linter and formatter** to enforce the Google style guide.
 10. **Seed data content.** Which courses and which test students?
 11. **PR template and GitHub branch protection settings.**
-12. **Dependency versions.** The `package.json` files use `latest` until pinned.
+12. **Dependency versions.** `migrations/package.json` uses `latest` and
+    `backend/requirements.txt` is unpinned. (The frontend is pinned, with a
+    committed `package-lock.json`.)

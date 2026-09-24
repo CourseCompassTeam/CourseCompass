@@ -61,8 +61,20 @@ All configuration comes from environment variables. Copy `.env.example` to
 
 ## Local setup
 
-TBD. Local database setup is an open question. The dependency versions in the
-`package.json` files are set to `latest` until the team pins them.
+### Frontend
+
+```
+cd frontend
+npm install
+npm run dev      # http://localhost:5173
+```
+
+Put local environment variables in `frontend/.env.local`, which git ignores.
+
+### Backend and database
+
+TBD. Local database setup is an open question. The dependency versions in
+`migrations/package.json` are set to `latest` until the team pins them.
 
 ## Git workflow
 
