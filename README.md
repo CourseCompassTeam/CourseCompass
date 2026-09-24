@@ -69,7 +69,20 @@ npm install
 npm run dev      # http://localhost:5173
 ```
 
-Put local environment variables in `frontend/.env.local`, which git ignores.
+Copy `frontend/.env.example` to `frontend/.env.local`, which git ignores:
+
+- **`VITE_USE_MOCK_API=true`** returns sample responses, so the chat works
+  without the backend. Type "simulate error" in a question to see the error
+  state.
+- **No `VITE_CLERK_PUBLISHABLE_KEY`** runs in dev mode with a fake signed-in
+  user. Add the key to turn on real Clerk sign-in.
+
+Other commands: `npm test` (Vitest), `npm run build`, and `npm run preview`.
+
+The chat follows the Detailed Design's Chat component. `ChatContainer`
+renders each message through a `MessageRenderer` picked by message type
+(`src/components/renderers/`). `ChatService` talks to the backend through
+the `APIClient` and `AuthService` interfaces (`src/services/`).
 
 ### Backend and database
 

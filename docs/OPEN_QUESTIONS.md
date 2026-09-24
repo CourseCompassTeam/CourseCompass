@@ -32,3 +32,11 @@ purpose, so the team can decide together.
 12. **Dependency versions.** `migrations/package.json` uses `latest` and
     `backend/requirements.txt` is unpinned. (The frontend is pinned, with a
     committed `package-lock.json`.)
+13. **`POST /api/v1/query` response content.** The API spec only documents
+    the `audit` content (`creditsRemaining`, `requirementsMet`,
+    `missingCourses`). The frontend currently expects these tentative shapes,
+    which the backend should confirm or change:
+    - Every type: an optional `message` string with the natural-language reply.
+    - `recommendation`: `courses: [{ code, title, description }]`
+    - `redirect`: `resourceName` and `url` (advising or career services link)
+    - The frontend treats any unknown `type` as a redirect.
