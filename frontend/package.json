@@ -9,7 +9,7 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@clerk/clerk-react": "latest",
+    "@clerk/react": "latest",
     "react": "latest",
     "react-dom": "latest"
   },

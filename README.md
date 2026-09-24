@@ -15,7 +15,7 @@ Built by Team Production Ready.
 | Layer      | Technology                                  |
 |------------|---------------------------------------------|
 | Frontend   | JavaScript, React, Vite, Vitest (ADR-005)   |
-| Auth       | Clerk (`@clerk/clerk-react`)                |
+| Auth       | Clerk (`@clerk/react`)                      |
 | Backend    | Python, FastAPI, pytest (ADR-006)           |
 | Database   | PostgreSQL + pgvector (ADR-002)             |
 | Migrations | node-pg-migrate                             |
