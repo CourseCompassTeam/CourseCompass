@@ -1,4 +1,11 @@
-// Entry point: renders <App /> inside ClerkProvider.
-// Needs VITE_CLERK_PUBLISHABLE_KEY (see .env.example).
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
 
-// TODO: create the React root and wrap <App /> in <ClerkProvider>.
+import App from './App.jsx';
+import './styles.css';
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);

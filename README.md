@@ -15,7 +15,7 @@ Built by Team Production Ready.
 | Layer      | Technology                                  |
 |------------|---------------------------------------------|
 | Frontend   | JavaScript, React, Vite, Vitest (ADR-005)   |
-| Auth       | Clerk (`@clerk/clerk-react`)                |
+| Auth       | Clerk (`@clerk/react`)                      |
 | Backend    | Python, FastAPI, pytest (ADR-006)           |
 | Database   | PostgreSQL + pgvector (ADR-002)             |
 | Migrations | node-pg-migrate                             |
@@ -61,8 +61,33 @@ All configuration comes from environment variables. Copy `.env.example` to
 
 ## Local setup
 
-TBD. Local database setup is an open question. The dependency versions in the
-`package.json` files are set to `latest` until the team pins them.
+### Frontend
+
+```
+cd frontend
+npm install
+npm run dev      # http://localhost:5173
+```
+
+Copy `frontend/.env.example` to `frontend/.env.local`, which git ignores:
+
+- **`VITE_USE_MOCK_API=true`** returns sample responses, so the chat works
+  without the backend. Type "simulate error" in a question to see the error
+  state.
+- **No `VITE_CLERK_PUBLISHABLE_KEY`** runs in dev mode with a fake signed-in
+  user. Add the key to turn on real Clerk sign-in.
+
+Other commands: `npm test` (Vitest), `npm run build`, and `npm run preview`.
+
+The chat follows the Detailed Design's Chat component. `ChatContainer`
+renders each message through a `MessageRenderer` picked by message type
+(`src/components/renderers/`). `ChatService` talks to the backend through
+the `APIClient` and `AuthService` interfaces (`src/services/`).
+
+### Backend and database
+
+TBD. Local database setup is an open question. The dependency versions in
+`migrations/package.json` are set to `latest` until the team pins them.
 
 ## Git workflow
 
