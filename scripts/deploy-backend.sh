@@ -40,6 +40,10 @@ gcloud builds submit "${BACKEND_DIR}" \
   --tag "${IMAGE}" \
   --project="${PROJECT_ID}"
 
+LLM_PROVIDER="${LLM_PROVIDER:-vertex}"
+LLM_MODEL="${LLM_MODEL:-gemini-2.5-flash}"
+GCP_LOCATION="${GCP_LOCATION:-${REGION}}"
+
 gcloud run deploy "${SERVICE_NAME}" \
   --image="${IMAGE}" \
   --region="${REGION}" \
@@ -51,7 +55,7 @@ gcloud run deploy "${SERVICE_NAME}" \
   --cpu=1 \
   --min-instances=0 \
   --max-instances=3 \
-  --set-env-vars="APP_NAME=${SERVICE_NAME},APP_ENV=staging"
+  --set-env-vars="APP_NAME=${SERVICE_NAME},APP_ENV=staging,LLM_PROVIDER=${LLM_PROVIDER},LLM_MODEL=${LLM_MODEL},GCP_PROJECT_ID=${PROJECT_ID},GCP_LOCATION=${GCP_LOCATION}"
 
 URL="$(gcloud run services describe "${SERVICE_NAME}" \
   --region="${REGION}" \
@@ -62,3 +66,6 @@ echo ""
 echo "Deployed: ${URL}"
 echo "Try:      curl ${URL}/health"
 echo "          curl ${URL}/api/info"
+echo "          curl -X POST ${URL}/api/v1/orchestration/route \\"
+echo "            -H 'Content-Type: application/json' \\"
+echo "            -d '{\"query\":\"What courses should I take?\"}'"

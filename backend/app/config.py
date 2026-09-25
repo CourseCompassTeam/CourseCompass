@@ -19,8 +19,11 @@ class Settings:
         environment: Deployment environment label (local, staging, prod).
         database_url: PostgreSQL connection string (optional in skeleton).
         clerk_secret_key: Clerk key used to verify session tokens.
-        llm_provider: Name of the LLM provider (TBD).
-        llm_api_key: API key for the LLM provider.
+        llm_provider: Provider key (``vertex`` for Vertex AI Gemini).
+        llm_api_key: Unused for Vertex (ADC). Kept for other vendors.
+        llm_model: Vertex Gemini model id.
+        gcp_project: GCP project used by Vertex AI.
+        gcp_location: Vertex AI region.
         cors_origins: Comma-separated allowed CORS origins.
     """
 
@@ -30,6 +33,9 @@ class Settings:
     clerk_secret_key: str
     llm_provider: str
     llm_api_key: str
+    llm_model: str
+    gcp_project: str
+    gcp_location: str
     cors_origins: tuple[str, ...]
 
 
@@ -56,5 +62,11 @@ def load_settings() -> Settings:
         clerk_secret_key=os.getenv('CLERK_SECRET_KEY', ''),
         llm_provider=os.getenv('LLM_PROVIDER', ''),
         llm_api_key=os.getenv('LLM_API_KEY', ''),
+        llm_model=os.getenv('LLM_MODEL', 'gemini-2.5-flash'),
+        gcp_project=os.getenv(
+            'GCP_PROJECT_ID',
+            os.getenv('GOOGLE_CLOUD_PROJECT', ''),
+        ),
+        gcp_location=os.getenv('GCP_LOCATION', 'us-central1'),
         cors_origins=origins,
     )
