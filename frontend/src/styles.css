@@ -185,9 +185,9 @@ p {
   justify-content: center;
 }
 
-/* ---------- Sign-in ---------- */
+/* ---------- Full-page status (sign-in, loading, errors) ---------- */
 
-.sign-in {
+.status-page {
   max-width: 28rem;
   margin: auto;
   padding: 2rem 1rem;
@@ -198,13 +198,13 @@ p {
   gap: 1rem;
 }
 
-.sign-in h1 {
+.status-page h1 {
   margin: 0;
   font-size: 1.75rem;
   line-height: 1.2;
 }
 
-.sign-in p {
+.status-page p {
   color: var(--color-text-muted);
 }
 
