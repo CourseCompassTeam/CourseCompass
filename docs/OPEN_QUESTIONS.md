@@ -30,6 +30,7 @@ purpose, so the team can decide together.
 9. **Python linter and formatter** to enforce the Google style guide.
 10. **Seed data content.** Which courses and which test students?
 11. **PR template and GitHub branch protection settings.**
+<<<<<<< HEAD
 12. **Dependency versions.** `migrations/package.json` uses `latest` and
     `backend/requirements.txt` is unpinned. (The frontend is pinned, with a
     committed `package-lock.json`.)
@@ -41,3 +42,10 @@ purpose, so the team can decide together.
     - `recommendation`: `courses: [{ code, title, description }]`
     - `redirect`: `resourceName` and `url` (advising or career services link)
     - The frontend treats any unknown `type` as a redirect.
+=======
+12. **Dependency versions.** The `package.json` files use `latest` until pinned.
+13. **LLM provider.** ~~Gemini, OpenAI, or Claude?~~ **Decided (SCRUM-11):**
+    Vertex AI Gemini via `VertexGeminiProvider` (`LLM_PROVIDER=vertex`),
+    using Application Default Credentials. Model id is configurable
+    (`LLM_MODEL`, default `gemini-2.5-flash`).
+>>>>>>> 42b97df (SCRUM-11: Wire Vertex AI Gemini into orchestration layer)

@@ -104,7 +104,44 @@ curl http://127.0.0.1:8080/api/info
 pytest
 ```
 
-Domain routes such as `POST /api/v1/query` are still stubs and return
+### Vertex AI Gemini (orchestration LLM)
+
+The orchestration layer talks to **Vertex AI Gemini** through
+`LLMProvider` / `VertexGeminiProvider` (ADC auth — no API key).
+
+```bash
+# one-time: enable API + ensure gcloud ADC
+gcloud services enable aiplatform.googleapis.com --project=coursecompass-509519
+gcloud auth application-default login   # local only
+
+export LLM_PROVIDER=vertex
+export GCP_PROJECT_ID=coursecompass-509519
+export GCP_LOCATION=us-central1
+export LLM_MODEL=gemini-2.5-flash
+export EMBEDDING_MODEL=gemini-embedding-001
+export EMBEDDING_DIMENSIONS=768
+
+./scripts/smoke_llm.sh
+./scripts/smoke_embed.sh
+```
+
+Syllabus search uses **`gemini-embedding-001`** at **768** dimensions so
+vectors fit `syllabus_chunks.embedding` (`vector(768)`). That client is
+`EmbeddingProvider` / `VertexEmbeddingProvider` — ingest and catalog
+services call it, not the orchestration layer.
+
+Live routing smoke (with the API running and env set):
+
+```bash
+curl -X POST http://127.0.0.1:8080/api/v1/orchestration/route \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"How many credits do I still need?"}'
+```
+
+`POST /api/v1/query` is still a stub; routing is available at
+`/api/v1/orchestration/route` until ToolDispatcher and MCPTools are wired.
+
+Domain routes such as `POST /api/v1/query` still return
 `501 NOT_IMPLEMENTED` with the standard error envelope.
 
 ### Deploy backend to Cloud Run
