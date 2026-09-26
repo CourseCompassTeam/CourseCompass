@@ -22,6 +22,8 @@ def _settings(**overrides) -> Settings:
         llm_provider='vertex',
         llm_api_key='',
         llm_model='gemini-2.5-flash',
+        embedding_model='gemini-embedding-001',
+        embedding_dimensions=768,
         gcp_project='coursecompass-509519',
         gcp_location='us-central1',
         cors_origins=('http://localhost:5173',),

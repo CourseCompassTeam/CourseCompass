@@ -16,12 +16,21 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         'name': 'audit_degree',
         'description': (
-            'Return the student degree audit: credits completed, credits '
-            'remaining, and missing required courses.'
+            'Return degree requirements or a student audit: program name, '
+            'credits completed, credits remaining, and required courses. '
+            'Use this when the student asks what a degree requires.'
         ),
         'parameters': {
             'type': 'object',
-            'properties': {},
+            'properties': {
+                'program_name': {
+                    'type': 'string',
+                    'description': (
+                        'Degree name when the student names a program, '
+                        'e.g. Master of Science - Software Engineering.'
+                    ),
+                },
+            },
             'additionalProperties': False,
         },
     },

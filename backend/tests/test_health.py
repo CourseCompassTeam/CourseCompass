@@ -15,6 +15,8 @@ def _settings() -> Settings:
         llm_provider='',
         llm_api_key='',
         llm_model='gemini-2.5-flash',
+        embedding_model='gemini-embedding-001',
+        embedding_dimensions=768,
         gcp_project='',
         gcp_location='us-central1',
         cors_origins=('http://localhost:5173',),
