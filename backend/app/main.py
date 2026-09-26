@@ -16,6 +16,7 @@ from app.api.v1 import admin_ingest
 from app.api.v1 import query
 from app.config import Settings
 from app.config import load_settings
+from app.orchestration.provider_factory import create_embedding_provider
 from app.orchestration.provider_factory import create_llm_provider
 
 _LOG = logging.getLogger(__name__)
@@ -27,7 +28,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     Registers the v1 routers (query, admin ingest), health probes used by
     Cloud Run, and the error handlers that return the standard error
     envelope. When ``LLM_PROVIDER`` is configured, attaches a Vertex AI
-    Gemini client on ``app.state.llm_provider`` for the orchestration layer.
+    Gemini chat client on ``app.state.llm_provider``. When a GCP project
+    is set, attaches ``app.state.embedding_provider`` for syllabus
+    vectors.
 
     Args:
         settings: Optional preloaded settings. When omitted, settings are
@@ -45,11 +48,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     application.state.settings = settings
     application.state.llm_provider = None
+    application.state.embedding_provider = None
     if settings.llm_provider:
         try:
             application.state.llm_provider = create_llm_provider(settings)
         except ValueError as exc:
             _LOG.warning('LLM provider not attached: %s', exc)
+    if settings.gcp_project and settings.embedding_model:
+        try:
+            application.state.embedding_provider = (
+                create_embedding_provider(settings)
+            )
+        except ValueError as exc:
+            _LOG.warning('Embedding provider not attached: %s', exc)
 
     application.add_middleware(
         CORSMiddleware,
@@ -86,6 +97,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def info() -> dict[str, str]:
         """Runtime metadata helpful when verifying a Cloud Run revision."""
         llm_status = 'configured' if application.state.llm_provider else 'off'
+        embed_status = (
+            'configured' if application.state.embedding_provider else 'off'
+        )
         return {
             'service': settings.app_name,
             'environment': settings.environment,
@@ -93,6 +107,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             'cloud_service': os.getenv('K_SERVICE', 'local'),
             'llm_provider': settings.llm_provider or 'none',
             'llm_status': llm_status,
+            'embedding_model': settings.embedding_model or 'none',
+            'embedding_dimensions': str(settings.embedding_dimensions),
+            'embedding_status': embed_status,
             'time_utc': datetime.now(timezone.utc).isoformat(),
         }
 

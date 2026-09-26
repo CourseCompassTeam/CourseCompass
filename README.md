@@ -118,9 +118,17 @@ export LLM_PROVIDER=vertex
 export GCP_PROJECT_ID=coursecompass-509519
 export GCP_LOCATION=us-central1
 export LLM_MODEL=gemini-2.5-flash
+export EMBEDDING_MODEL=gemini-embedding-001
+export EMBEDDING_DIMENSIONS=768
 
 ./scripts/smoke_llm.sh
+./scripts/smoke_embed.sh
 ```
+
+Syllabus search uses **`gemini-embedding-001`** at **768** dimensions so
+vectors fit `syllabus_chunks.embedding` (`vector(768)`). That client is
+`EmbeddingProvider` / `VertexEmbeddingProvider` — ingest and catalog
+services call it, not the orchestration layer.
 
 Live routing smoke (with the API running and env set):
 
