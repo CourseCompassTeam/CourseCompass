@@ -18,6 +18,7 @@ from app.config import Settings
 from app.config import load_settings
 from app.orchestration.provider_factory import create_embedding_provider
 from app.orchestration.provider_factory import create_llm_provider
+from app.repositories.factory import build_tool_dispatcher
 
 _LOG = logging.getLogger(__name__)
 
@@ -49,6 +50,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.state.settings = settings
     application.state.llm_provider = None
     application.state.embedding_provider = None
+    application.state.tool_dispatcher = None
     if settings.llm_provider:
         try:
             application.state.llm_provider = create_llm_provider(settings)
@@ -61,6 +63,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
         except ValueError as exc:
             _LOG.warning('Embedding provider not attached: %s', exc)
+    if settings.database_url:
+        try:
+            application.state.tool_dispatcher = build_tool_dispatcher(
+                settings.database_url,
+                embedding_provider=application.state.embedding_provider,
+            )
+        except Exception as exc:
+            _LOG.warning('Tool dispatcher not attached: %s', exc)
 
     application.add_middleware(
         CORSMiddleware,
@@ -100,6 +110,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         embed_status = (
             'configured' if application.state.embedding_provider else 'off'
         )
+        db_status = (
+            'configured' if application.state.tool_dispatcher else 'off'
+        )
         return {
             'service': settings.app_name,
             'environment': settings.environment,
@@ -110,6 +123,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             'embedding_model': settings.embedding_model or 'none',
             'embedding_dimensions': str(settings.embedding_dimensions),
             'embedding_status': embed_status,
+            'database_status': db_status,
             'time_utc': datetime.now(timezone.utc).isoformat(),
         }
 

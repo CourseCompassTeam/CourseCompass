@@ -17,6 +17,7 @@ from app.embeddings.embedding_provider import TASK_QUERY
 from app.embeddings.embedding_provider import EmbeddingProvider
 from app.orchestration.llm_provider import LLMProvider
 from app.orchestration.tool_catalog import TOOL_DEFINITIONS
+from app.orchestration.tool_dispatcher import ToolDispatcher
 from app.schemas.query import QueryResponse
 
 _AUDIT_RESULT = {
@@ -96,24 +97,35 @@ def answer_query(
     provider: LLMProvider,
     query: str,
     embedding_provider: EmbeddingProvider | None = None,
+    tool_dispatcher: ToolDispatcher | None = None,
+    student_id: str = '',
 ) -> QueryResponse:
-    """Runs choose_tool -> mock tool data -> phrase_response.
+    """Runs choose_tool -> tool data -> phrase_response.
 
-    Recommend paths call the real embedding model to rank leftover
-    mock courses. Flash only routes and phrases.
+    When a dispatcher is attached, tools read PostgreSQL. Otherwise
+    leftover mock courses are used. Recommend paths still rank with
+    embeddings when a provider is configured on the mock path.
 
     Args:
         provider: Configured LLM provider.
         query: The student's question.
         embedding_provider: Vertex embedding client, if configured.
+        tool_dispatcher: Live MCPTools dispatcher, if the database
+            is configured.
+        student_id: Server-injected student id (QA-03).
 
     Returns:
         A QueryResponse the frontend can render.
     """
     choice = provider.choose_tool(query, TOOL_DEFINITIONS)
-    response_type, facts = _mock_result(
-        choice, query, embedding_provider
-    )
+    if tool_dispatcher is not None:
+        response_type, facts = _live_result(
+            tool_dispatcher, choice, query, student_id
+        )
+    else:
+        response_type, facts = _mock_result(
+            choice, query, embedding_provider
+        )
     facts = _with_phrase_context(facts, query)
     message = provider.phrase_response(facts)
     content = dict(facts)
@@ -187,6 +199,58 @@ def _mock_result(
         return 'redirect', dict(_CAREER_REDIRECT)
 
     return 'redirect', dict(_REDIRECT_RESULT)
+
+
+def _live_result(
+    dispatcher: ToolDispatcher,
+    choice: dict[str, Any],
+    query: str,
+    student_id: str,
+) -> tuple[str, dict[str, Any]]:
+    """Runs the chosen tool against live repositories.
+
+    Args:
+        dispatcher: Wired MCPTools dispatcher.
+        choice: ToolChoice from the LLM provider.
+        query: Original student question.
+        student_id: Server-injected student id.
+
+    Returns:
+        Response type and JSON-serializable facts for phrasing.
+    """
+    if choice.get('redirect') or not choice.get('tool'):
+        facts = dict(_REDIRECT_RESULT)
+        reason = (choice.get('arguments') or {}).get('reason')
+        if reason:
+            facts['reason'] = reason
+        return 'redirect', facts
+
+    tool = choice['tool']
+    arguments = dict(choice.get('arguments') or {})
+    named_course = _course_from(arguments, query)
+
+    if tool == 'get_career_services' and named_course:
+        facts = dispatcher.dispatch(
+            'get_course_description',
+            student_id,
+            {'course_id': named_course},
+        )
+        return 'recommendation', _with_career_handoff(facts)
+
+    facts = dispatcher.dispatch(tool, student_id, arguments)
+    if tool == 'audit_degree':
+        return 'audit', facts
+    if tool == 'get_course_description':
+        return 'recommendation', _with_career_handoff(facts)
+    if tool in ('recommend_courses', 'get_next_milestones'):
+        return 'recommendation', _with_career_handoff(facts)
+    if tool == 'build_schedule':
+        if facts.get('scheduleChecked'):
+            return 'recommendation', facts
+        return 'redirect', facts
+    if tool in ('get_advisor_contact', 'get_career_services'):
+        return 'redirect', facts
+    return 'redirect', facts
 
 
 def _with_phrase_context(

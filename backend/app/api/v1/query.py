@@ -17,9 +17,8 @@ router = APIRouter(prefix='/api/v1')
 def post_query(body: QueryRequest, request: Request) -> QueryResponse:
     """Answers a student's natural-language question.
 
-    The LLM picks a tool and phrases the reply. Tool data is hardcoded
-    mock facts so local/Postman tests can run end-to-end without a
-    database.
+    The LLM picks a tool and phrases the reply. When DATABASE_URL is
+    set, tools read Cloud SQL. Otherwise hardcoded mock facts are used.
 
     Args:
         body: The student's question.
@@ -45,6 +44,9 @@ def post_query(body: QueryRequest, request: Request) -> QueryResponse:
         body.query,
         embedding_provider=getattr(
             request.app.state, 'embedding_provider', None
+        ),
+        tool_dispatcher=getattr(
+            request.app.state, 'tool_dispatcher', None
         ),
     )
 
