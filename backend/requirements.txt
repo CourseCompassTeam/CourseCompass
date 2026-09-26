@@ -6,3 +6,5 @@ google-genai==1.14.0
 pytest==8.3.5
 httpx==0.28.1
 psycopg[binary]==3.2.13
+pgvector
+python-dotenv
