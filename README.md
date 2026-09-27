@@ -15,7 +15,7 @@ Built by Team Production Ready.
 | Layer      | Technology                                  |
 |------------|---------------------------------------------|
 | Frontend   | JavaScript, React, Vite, Vitest (ADR-005)   |
-| Auth       | Clerk (`@clerk/clerk-react`)                |
+| Auth       | Clerk (`@clerk/react`)                      |
 | Backend    | Python, FastAPI, pytest (ADR-006)           |
 | Database   | PostgreSQL + pgvector (ADR-002)             |
 | Migrations | node-pg-migrate                             |
@@ -48,9 +48,11 @@ backend/
     repositories/   data access interfaces
     ingestion/      data source ingestion interface (QA-04)
   tests/            pytest
+  Dockerfile        Cloud Run container image (SCRUM-11)
 frontend/           React + Vite app (chat UI: SCRUM-9)
 migrations/         node-pg-migrate schema migrations
 seeds/              dev/test-only seed data
+scripts/            gcloud auth + Cloud Run deploy helpers
 docs/               open questions for the team
 ```
 
@@ -61,8 +63,104 @@ All configuration comes from environment variables. Copy `.env.example` to
 
 ## Local setup
 
-TBD. Local database setup is an open question. The dependency versions in the
-`package.json` files are set to `latest` until the team pins them.
+### Frontend
+
+```
+cd frontend
+npm install
+npm run dev      # http://localhost:5173
+```
+
+Copy `frontend/.env.example` to `frontend/.env.local`, which git ignores:
+
+- **`VITE_USE_MOCK_API=true`** returns sample responses, so the chat works
+  without the backend. Type "simulate error" in a question to see the error
+  state.
+- **No `VITE_CLERK_PUBLISHABLE_KEY`** runs in dev mode with a fake signed-in
+  user. Add the key to turn on real Clerk sign-in.
+
+Other commands: `npm test` (Vitest), `npm run build`, and `npm run preview`.
+
+The chat follows the Detailed Design's Chat component. `ChatContainer`
+renders each message through a `MessageRenderer` picked by message type
+(`src/components/renderers/`). `ChatService` talks to the backend through
+the `APIClient` and `AuthService` interfaces (`src/services/`).
+
+### Backend (FastAPI)
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
+```
+
+Smoke checks:
+
+```bash
+curl http://127.0.0.1:8080/health
+curl http://127.0.0.1:8080/api/info
+pytest
+```
+
+### Vertex AI Gemini (orchestration LLM)
+
+The orchestration layer talks to **Vertex AI Gemini** through
+`LLMProvider` / `VertexGeminiProvider` (ADC auth — no API key).
+
+```bash
+# one-time: enable API + ensure gcloud ADC
+gcloud services enable aiplatform.googleapis.com --project=coursecompass-509519
+gcloud auth application-default login   # local only
+
+export LLM_PROVIDER=vertex
+export GCP_PROJECT_ID=coursecompass-509519
+export GCP_LOCATION=us-central1
+export LLM_MODEL=gemini-2.5-flash
+export EMBEDDING_MODEL=gemini-embedding-001
+export EMBEDDING_DIMENSIONS=768
+
+./scripts/smoke_llm.sh
+./scripts/smoke_embed.sh
+```
+
+Syllabus search uses **`gemini-embedding-001`** at **768** dimensions so
+vectors fit `syllabus_chunks.embedding` (`vector(768)`). That client is
+`EmbeddingProvider` / `VertexEmbeddingProvider` — ingest and catalog
+services call it, not the orchestration layer.
+
+Live routing smoke (with the API running and env set):
+
+```bash
+curl -X POST http://127.0.0.1:8080/api/v1/orchestration/route \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"How many credits do I still need?"}'
+```
+
+`POST /api/v1/query` is still a stub; routing is available at
+`/api/v1/orchestration/route` until ToolDispatcher and MCPTools are wired.
+
+Domain routes such as `POST /api/v1/query` still return
+`501 NOT_IMPLEMENTED` with the standard error envelope.
+
+### Deploy backend to Cloud Run
+
+Requires `gcloud` authenticated to a project with billing enabled.
+
+```bash
+chmod +x scripts/*.sh
+export GCP_PROJECT_ID="your-gcp-project-id"
+# Optional: GCP_REGION=us-central1 SERVICE_NAME=coursecompass-api
+./scripts/auth-gcp.sh          # or: ./scripts/auth-gcp.sh --login
+./scripts/deploy-backend.sh
+```
+
+The deploy script builds `backend/Dockerfile` with Cloud Build and deploys
+the image to Cloud Run (`--allow-unauthenticated` for staging smoke tests).
+
+Local database setup is still an open question. Frontend `package.json`
+dependency versions remain `latest` until the team pins them.
 
 ## Git workflow
 

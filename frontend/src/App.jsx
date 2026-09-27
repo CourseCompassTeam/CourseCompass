@@ -1,7 +1,22 @@
-// Top-level component: shows the sign-in view or the chat view.
-// The chat UI (ChatContainer, ChatService, MessageRenderer) is SCRUM-9.
+// Top-level component: uses Clerk sign-in when a publishable key is set,
+// otherwise a dev-mode fake user.
+
+import { ClerkProvider } from '@clerk/react';
+
+import ClerkRoot from './auth/ClerkRoot.jsx';
+import DevRoot from './auth/DevRoot.jsx';
+import { config } from './config.js';
+import { createApiClient } from './services/createApiClient.js';
+
+const apiClient = createApiClient();
 
 export default function App() {
-  // TODO
-  return null;
+  if (!config.clerkPublishableKey) {
+    return <DevRoot apiClient={apiClient} />;
+  }
+  return (
+    <ClerkProvider publishableKey={config.clerkPublishableKey}>
+      <ClerkRoot apiClient={apiClient} />
+    </ClerkProvider>
+  );
 }
