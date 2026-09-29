@@ -39,6 +39,18 @@ def post_query(body: QueryRequest, request: Request) -> QueryResponse:
             'LLM provider is not configured. Set LLM_PROVIDER=vertex '
             'and GCP_PROJECT_ID.',
         )
+    # Staging/local only: inject a seed clerk id until Clerk auth is wired.
+    # Example: X-Dev-Student-Id: test_clerk_user_1
+    student_id = ''
+    settings = getattr(request.app.state, 'settings', None)
+    env = getattr(settings, 'environment', '') if settings else ''
+    if env in ('local', 'staging', 'test'):
+        student_id = (
+            request.headers.get('X-Dev-Student-Id')
+            or request.headers.get('x-dev-student-id')
+            or ''
+        ).strip()
+
     return answer_query(
         provider,
         body.query,
@@ -48,6 +60,7 @@ def post_query(body: QueryRequest, request: Request) -> QueryResponse:
         tool_dispatcher=getattr(
             request.app.state, 'tool_dispatcher', None
         ),
+        student_id=student_id,
     )
 
 
