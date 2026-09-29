@@ -5,6 +5,7 @@ from fastapi import Request
 
 from app.api.errors import ApiError
 from app.api.errors import NOT_IMPLEMENTED
+from app.auth.clerk_auth import resolve_student_id
 from app.orchestration.mock_query import answer_query
 from app.orchestration.tool_catalog import TOOL_DEFINITIONS
 from app.schemas.query import QueryRequest
@@ -20,6 +21,10 @@ def post_query(body: QueryRequest, request: Request) -> QueryResponse:
     The LLM picks a tool and phrases the reply. When DATABASE_URL is
     set, tools read Cloud SQL. Otherwise hardcoded mock facts are used.
 
+    Student identity is injected by the server from a verified Clerk
+    Bearer token (QA-03). In local/staging/test, ``X-Dev-Student-Id``
+    can select a seed persona when no Bearer token is sent.
+
     Args:
         body: The student's question.
         request: FastAPI request (reads app.state.llm_provider).
@@ -29,6 +34,7 @@ def post_query(body: QueryRequest, request: Request) -> QueryResponse:
 
     Raises:
         ApiError: 501 if the LLM provider is not configured.
+        ApiError: 401 if a Bearer token is present but invalid.
     """
     provider = getattr(request.app.state, 'llm_provider', None)
     if provider is None:
@@ -39,17 +45,10 @@ def post_query(body: QueryRequest, request: Request) -> QueryResponse:
             'LLM provider is not configured. Set LLM_PROVIDER=vertex '
             'and GCP_PROJECT_ID.',
         )
-    # Staging/local only: inject a seed clerk id until Clerk auth is wired.
-    # Example: X-Dev-Student-Id: test_clerk_user_1
-    student_id = ''
     settings = getattr(request.app.state, 'settings', None)
-    env = getattr(settings, 'environment', '') if settings else ''
-    if env in ('local', 'staging', 'test'):
-        student_id = (
-            request.headers.get('X-Dev-Student-Id')
-            or request.headers.get('x-dev-student-id')
-            or ''
-        ).strip()
+    student_id = ''
+    if settings is not None:
+        student_id = resolve_student_id(request.headers, settings)
 
     return answer_query(
         provider,
