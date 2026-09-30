@@ -54,6 +54,21 @@ PREREQUISITES = [
     ("MSSE 692", "MSSE 610", "prereq"),
 ]
 
+# Real term offerings from the team's rotation schedule. MSES 602 and
+# MSCC 697 are not in this list yet.
+COURSE_OFFERINGS = {
+    "MSSE 610": ["2026 FALL 8W2", "2027 SPR 8W2"],
+    "MSSE 613": ["2027 SPR 8W2"],
+    "MSSE 642": ["2027 SPR 8W2"],
+    "MSSE 696": ["2026 FALL 8W2", "2027 SPR 8W2"],
+    "MSSE 601": ["2026 FALL 8W1", "2027 SPR 8W1"],
+    "MSSE 603": ["2027 SPR 8W1"],
+    "MSSE 635": ["2026 FALL 8W2", "2027 SPR 8W1"],
+    "MSSE 640": ["2027 SPR 8W1"],
+    "MSSE 692": ["2026 FALL 8W1", "2027 SPR 8W1"],
+    "MSSE 615": ["2026 FALL 8W2"],
+}
+
 # (clerk_user_id, email, full_name, status)
 STUDENTS = [
     ("user_3K1pC0YksFOD8HW1dIiz4ITDt90", "nearly.done@example.edu", "Test Student Nearly Done", "active"),
@@ -93,7 +108,6 @@ MILESTONES = [
     (13, 24, "Internships", ["Add new skills to your resume", "Apply to internships"]),
     (25, None, "Capstone", ["Finalize your portfolio", "Prepare for your practicum"]),
 ]
-
 
 def insert_if_missing(cur, exists_sql, insert_sql, params):
     """Runs insert_sql only when exists_sql finds no matching row."""
@@ -200,11 +214,21 @@ def seed(cur):
             },
         )
 
+    for code, terms in COURSE_OFFERINGS.items():
+        for term in terms:
+            insert_if_missing(
+                cur,
+                "SELECT 1 FROM course_offerings WHERE course_id = %(course_id)s "
+                "AND term = %(term)s",
+                "INSERT INTO course_offerings (course_id, term) "
+                "VALUES (%(course_id)s, %(term)s)",
+                {"course_id": course_ids[code], "term": term},
+            )
 
 def print_counts(cur):
     """Prints row counts so the run can be checked at a glance."""
     for table in ("programs", "courses", "requirements", "prerequisites", "students",
-                  "transcript_entries", "advisor_contacts", "milestones"):
+                  "transcript_entries", "advisor_contacts", "milestones", "course_offerings"):
         cur.execute(f"SELECT COUNT(*) FROM {table}")
         print(f"  {table}: {cur.fetchone()[0]}")
 
