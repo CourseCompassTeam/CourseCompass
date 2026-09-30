@@ -56,8 +56,8 @@ PREREQUISITES = [
 
 # (clerk_user_id, email, full_name, status)
 STUDENTS = [
-    ("test_clerk_user_1", "nearly.done@example.edu", "Test Student Nearly Done", "active"),
-    ("test_clerk_user_2", "just.started@example.edu", "Test Student Just Started", "active"),
+    ("user_3K1pC0YksFOD8HW1dIiz4ITDt90", "nearly.done@example.edu", "Test Student Nearly Done", "active"),
+    ("user_3K1pFAxQfqDz2PPIyQtCuhCoMWO", "just.started@example.edu", "Test Student Just Started", "active"),
 ]
 
 # (course code, term, status). "Nearly done" has 30 credits completed and only
