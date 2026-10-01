@@ -86,6 +86,23 @@ renders each message through a `MessageRenderer` picked by message type
 (`src/components/renderers/`). `ChatService` talks to the backend through
 the `APIClient` and `AuthService` interfaces (`src/services/`).
 
+Each question is sent with a short conversation history so the backend can
+understand follow-ups (built in `src/models/chatHistory.js`):
+
+```json
+{
+  "query": "what are its prerequisites?",
+  "history": [
+    { "role": "student", "text": "what is SE 610?" },
+    { "role": "assistant", "text": "SE 610 is Software Architecture..." }
+  ]
+}
+```
+
+`history` is oldest first, never includes the current `query`, and holds at
+most the last 3 complete exchanges (6 messages). Questions that ended in an
+error are left out, so roles always alternate.
+
 ### Backend (FastAPI)
 
 ```bash

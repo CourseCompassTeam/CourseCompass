@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
+import { buildHistory } from '../models/chatHistory.js';
 import { MessageType, createMessage } from '../models/message.js';
 import ChatInput from './ChatInput.jsx';
 import { getRenderer } from './renderers/index.js';
@@ -28,11 +29,13 @@ export default function ChatContainer({ chatService }) {
 
   async function handleSubmit(query) {
     const append = (message) => setMessages((prev) => [...prev, message]);
+    // Built before the new question is added, so it holds only earlier turns.
+    const history = buildHistory(messages);
 
     append(createMessage({ type: MessageType.QUERY, content: { text: query } }));
     setIsLoading(true);
     try {
-      append(await chatService.sendQuery(query));
+      append(await chatService.sendQuery(query, history));
     } catch (error) {
       append(createMessage({
         type: MessageType.ERROR,
