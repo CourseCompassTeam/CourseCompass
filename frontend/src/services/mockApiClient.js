@@ -9,11 +9,28 @@ import { ApiError } from './apiClient.js';
 
 const SAMPLE_RESPONSES = {
   audit: {
-    message:
-      'You have completed 27 of 36 credits. Three required courses remain.',
-    creditsRemaining: 9,
+    message: 'You have completed 15 of 36 credits. Seven required courses ' +
+      'remain, starting with Software Requirements and Processes.',
+    programName: 'Software Engineering (M.S.)',
+    creditsCompleted: 15,
+    creditsRemaining: 21,
+    creditsRequired: 36,
     requirementsMet: false,
-    missingCourses: ['SE 640', 'SE 660', 'SE 699'],
+    missingCourses: [
+      'SE 610', 'SE 613', 'SE 635', 'SE 640', 'SE 642', 'SE 692', 'SE 696',
+    ],
+    requiredCourses: [
+      ['SE 601', 'Software Engineering Fundamentals'],
+      ['SE 603', 'Software Engineering Leadership'],
+      ['SE 610', 'Software Requirements and Processes'],
+      ['SE 613', 'Software Project Management'],
+      ['SE 615', 'Software Engineering and Society'],
+      ['SE 635', 'Software Architecture and Design'],
+      ['SE 640', 'Software Quality and Test'],
+      ['SE 642', 'Software Assurance'],
+      ['SE 692', 'Software Engineering Practicum I'],
+      ['SE 696', 'Software Engineering Practicum II'],
+    ].map(([code, title]) => ({ code, title, credits: 3, category: 'core' })),
   },
   recommendation: {
     message: 'Based on your interest, these courses fit your open ' +
