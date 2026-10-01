@@ -9,16 +9,16 @@ describe('summarizeAudit', () => {
       creditsRemaining: 6,
       creditsRequired: 36,
       requirementsMet: false,
-      missingCourses: ['SE 692'],
+      missingCourses: ['MSSE 692'],
       requiredCourses: [
-        { code: 'SE 692', title: 'Practicum I', credits: 3 },
-        { code: 'SE 601', title: 'Fundamentals', credits: 3 },
+        { code: 'MSSE 692', title: 'Software Engineering Practicum I', credits: 3 },
+        { code: 'MSSE 601', title: 'Software Engineer Fundamentals', credits: 3 },
       ],
     });
 
     expect(summary.percent).toBe(83);
     expect(summary.missing).toEqual([
-      { code: 'SE 692', title: 'Practicum I', credits: 3 },
+      { code: 'MSSE 692', title: 'Software Engineering Practicum I', credits: 3 },
     ]);
   });
 
@@ -29,9 +29,9 @@ describe('summarizeAudit', () => {
   });
 
   it('keeps bare codes when course details are missing', () => {
-    const summary = summarizeAudit({ missingCourses: ['SE 699'] });
+    const summary = summarizeAudit({ missingCourses: ['MSSE 696'] });
     expect(summary.missing).toEqual([
-      { code: 'SE 699', title: null, credits: null },
+      { code: 'MSSE 696', title: null, credits: null },
     ]);
     expect(summary.percent).toBeNull();
   });
