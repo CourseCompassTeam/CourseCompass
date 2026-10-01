@@ -31,6 +31,23 @@ const SAMPLE_RESPONSES = {
       },
     ],
   },
+  milestones: {
+    message: 'You are at the Foundations stage. Here are a few things to ' +
+      'work on outside of class:',
+    milestones: [
+      {
+        label: 'Foundations',
+        creditMin: 0,
+        creditMax: 12,
+        nextActions: [
+          'Review your degree plan with your advisor',
+          'Start a portfolio repository on GitHub',
+        ],
+      },
+    ],
+    resourceName: 'Career Services',
+    url: 'https://example.com/career-services',
+  },
   redirect: {
     message: 'That question is outside what I can answer reliably. ' +
       'An academic advisor can help with this.',
@@ -39,9 +56,12 @@ const SAMPLE_RESPONSES = {
   },
 };
 
+// [sample, response type, pattern]. The first match wins.
 const INTENT_KEYWORDS = [
-  ['audit', /graduat|credit|remaining|left|audit|progress/i],
-  ['recommendation', /recommend|interest|elective|suggest|next term/i],
+  ['milestones', 'recommendation', /next steps|milestone|outside of class/i],
+  ['audit', 'audit', /graduat|credit|remaining|left|audit|progress/i],
+  ['recommendation', 'recommendation',
+    /recommend|interest|elective|suggest|next term/i],
 ];
 
 export class MockAPIClient {
@@ -68,12 +88,12 @@ export class MockAPIClient {
       throw new ApiError(500, 'INTERNAL_ERROR', 'Simulated server error.');
     }
 
-    const match = INTENT_KEYWORDS.find(([, pattern]) => pattern.test(query));
-    const type = match ? match[0] : 'redirect';
+    const match = INTENT_KEYWORDS.find(([, , pattern]) => pattern.test(query));
+    const [sample, type] = match ?? ['redirect', 'redirect'];
     return {
       id: crypto.randomUUID(),
       type,
-      content: SAMPLE_RESPONSES[type],
+      content: SAMPLE_RESPONSES[sample],
       timestamp: new Date().toISOString(),
     };
   }
