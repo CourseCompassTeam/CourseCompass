@@ -26,8 +26,10 @@ export class ClerkAuthService {
 
 /** Fake signed-in user, for local development without a Clerk key. */
 export class DevAuthService {
+  // No token, so no Authorization header is sent. The backend verifies
+  // Bearer tokens and would reject a made-up one with 401.
   async getSessionToken() {
-    return 'dev-token';
+    return '';
   }
 
   getUserId() {

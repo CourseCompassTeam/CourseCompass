@@ -34,7 +34,7 @@ export default function ChatContainer({ chatService }) {
     } catch (error) {
       append(createMessage({
         type: MessageType.ERROR,
-        content: { message: error.message },
+        content: { message: error.message, code: error.code },
       }));
     } finally {
       setIsLoading(false);

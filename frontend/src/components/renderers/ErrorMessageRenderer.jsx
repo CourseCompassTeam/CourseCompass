@@ -1,15 +1,17 @@
 import MessageBubble from './MessageBubble.jsx';
+import { getErrorHint } from './errorHints.js';
 
 /** A request that failed before we got an answer. */
 export default function ErrorMessageRenderer({ message }) {
+  const { message: text, code } = message.content;
   return (
     <MessageBubble
       from="assistant"
       variant="error"
       timestamp={message.timestamp}
     >
-      <p>{message.content.message ?? 'Something went wrong.'}</p>
-      <p className="bubble__hint">Please try again in a moment.</p>
+      <p>{text ?? 'Something went wrong.'}</p>
+      <p className="bubble__hint">{getErrorHint(code)}</p>
     </MessageBubble>
   );
 }
