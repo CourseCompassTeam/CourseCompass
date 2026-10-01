@@ -14,6 +14,16 @@ describe('MockAPIClient.post', () => {
     expect(response.type).toBe(type);
   });
 
+  it('returns milestones for next-steps questions', async () => {
+    const response = await client.post(
+      '/api/v1/query',
+      { query: 'What are my next steps outside of class?' },
+      'tok',
+    );
+    expect(response.type).toBe('recommendation');
+    expect(response.content.milestones[0].nextActions.length).toBeGreaterThan(0);
+  });
+
   it('simulates a server error on request', async () => {
     await expect(
       client.post('/api/v1/query', { query: 'simulate error' }, 'tok'),

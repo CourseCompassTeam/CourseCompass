@@ -9,11 +9,28 @@ import { ApiError } from './apiClient.js';
 
 const SAMPLE_RESPONSES = {
   audit: {
-    message:
-      'You have completed 27 of 36 credits. Three required courses remain.',
-    creditsRemaining: 9,
+    message: 'You have completed 15 of 36 credits. Seven required courses ' +
+      'remain, starting with Software Requirements and Processes.',
+    programName: 'Software Engineering (M.S.)',
+    creditsCompleted: 15,
+    creditsRemaining: 21,
+    creditsRequired: 36,
     requirementsMet: false,
-    missingCourses: ['SE 640', 'SE 660', 'SE 699'],
+    missingCourses: [
+      'SE 610', 'SE 613', 'SE 635', 'SE 640', 'SE 642', 'SE 692', 'SE 696',
+    ],
+    requiredCourses: [
+      ['SE 601', 'Software Engineering Fundamentals'],
+      ['SE 603', 'Software Engineering Leadership'],
+      ['SE 610', 'Software Requirements and Processes'],
+      ['SE 613', 'Software Project Management'],
+      ['SE 615', 'Software Engineering and Society'],
+      ['SE 635', 'Software Architecture and Design'],
+      ['SE 640', 'Software Quality and Test'],
+      ['SE 642', 'Software Assurance'],
+      ['SE 692', 'Software Engineering Practicum I'],
+      ['SE 696', 'Software Engineering Practicum II'],
+    ].map(([code, title]) => ({ code, title, credits: 3, category: 'core' })),
   },
   recommendation: {
     message: 'Based on your interest, these courses fit your open ' +
@@ -31,6 +48,23 @@ const SAMPLE_RESPONSES = {
       },
     ],
   },
+  milestones: {
+    message: 'You are at the Foundations stage. Here are a few things to ' +
+      'work on outside of class:',
+    milestones: [
+      {
+        label: 'Foundations',
+        creditMin: 0,
+        creditMax: 12,
+        nextActions: [
+          'Review your degree plan with your advisor',
+          'Start a portfolio repository on GitHub',
+        ],
+      },
+    ],
+    resourceName: 'Career Services',
+    url: 'https://example.com/career-services',
+  },
   redirect: {
     message: 'That question is outside what I can answer reliably. ' +
       'An academic advisor can help with this.',
@@ -39,9 +73,12 @@ const SAMPLE_RESPONSES = {
   },
 };
 
+// [sample, response type, pattern]. The first match wins.
 const INTENT_KEYWORDS = [
-  ['audit', /graduat|credit|remaining|left|audit|progress/i],
-  ['recommendation', /recommend|interest|elective|suggest|next term/i],
+  ['milestones', 'recommendation', /next steps|milestone|outside of class/i],
+  ['audit', 'audit', /graduat|credit|remaining|left|audit|progress/i],
+  ['recommendation', 'recommendation',
+    /recommend|interest|elective|suggest|next term/i],
 ];
 
 export class MockAPIClient {
@@ -68,12 +105,12 @@ export class MockAPIClient {
       throw new ApiError(500, 'INTERNAL_ERROR', 'Simulated server error.');
     }
 
-    const match = INTENT_KEYWORDS.find(([, pattern]) => pattern.test(query));
-    const type = match ? match[0] : 'redirect';
+    const match = INTENT_KEYWORDS.find(([, , pattern]) => pattern.test(query));
+    const [sample, type] = match ?? ['redirect', 'redirect'];
     return {
       id: crypto.randomUUID(),
       type,
-      content: SAMPLE_RESPONSES[type],
+      content: SAMPLE_RESPONSES[sample],
       timestamp: new Date().toISOString(),
     };
   }

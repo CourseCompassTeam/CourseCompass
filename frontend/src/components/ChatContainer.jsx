@@ -4,10 +4,12 @@ import { MessageType, createMessage } from '../models/message.js';
 import ChatInput from './ChatInput.jsx';
 import { getRenderer } from './renderers/index.js';
 
+// One per implemented feature: audit (US-01), recommendations (US-03),
+// next steps outside of class (US-07).
 const SUGGESTIONS = [
   'What do I still need to graduate?',
-  'Recommend a course that fits my interest in project management',
-  'Can my transfer credit count toward a requirement?',
+  'Which electives fit my interest in cloud computing?',
+  'What are my next steps outside of class?',
 ];
 
 /**
@@ -34,7 +36,7 @@ export default function ChatContainer({ chatService }) {
     } catch (error) {
       append(createMessage({
         type: MessageType.ERROR,
-        content: { message: error.message },
+        content: { message: error.message, code: error.code },
       }));
     } finally {
       setIsLoading(false);
