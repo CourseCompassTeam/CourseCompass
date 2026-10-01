@@ -54,6 +54,16 @@ PREREQUISITES = [
     ("MSSE 692", "MSSE 610", "prereq"),
 ]
 
+# Term dates from the team's course schedule. term_name uses the short
+# format already used in COURSE_OFFERINGS ("2026 FALL 8W1"), not the
+# longer form the schedule was first written in.
+TERMS = [
+    ("2026 FALL 8W1", "2026-08-24", "2026-10-18"),
+    ("2026 FALL 8W2", "2026-10-19", "2026-12-13"),
+    ("2027 SPR 8W1", "2027-01-11", "2027-03-07"),
+    ("2027 SPR 8W2", "2027-03-08", "2027-05-02"),
+]
+
 # Real term offerings from the team's rotation schedule. MSES 602 and
 # MSCC 697 are not in this list yet.
 COURSE_OFFERINGS = {
@@ -278,15 +288,27 @@ def seed(cur):
             },
         )
 
+    term_ids = {}
+    for term_name, start_date, end_date in TERMS:
+        cur.execute(
+            "INSERT INTO terms (term_name, start_date, end_date) "
+            "VALUES (%s, %s, %s) "
+            "ON CONFLICT (term_name) DO UPDATE SET start_date = EXCLUDED.start_date, "
+            "end_date = EXCLUDED.end_date "
+            "RETURNING term_id",
+            (term_name, start_date, end_date),
+        )
+        term_ids[term_name] = cur.fetchone()[0]
+
     for code, terms in COURSE_OFFERINGS.items():
         for term in terms:
             insert_if_missing(
                 cur,
                 "SELECT 1 FROM course_offerings WHERE course_id = %(course_id)s "
-                "AND term = %(term)s",
-                "INSERT INTO course_offerings (course_id, term) "
-                "VALUES (%(course_id)s, %(term)s)",
-                {"course_id": course_ids[code], "term": term},
+                "AND term_id = %(term_id)s",
+                "INSERT INTO course_offerings (course_id, term_id) "
+                "VALUES (%(course_id)s, %(term_id)s)",
+                {"course_id": course_ids[code], "term_id": term_ids[term]},
             )
 
     for code, chunks in SYLLABUS_CHUNKS.items():
@@ -304,7 +326,7 @@ def print_counts(cur):
     """Prints row counts so the run can be checked at a glance."""
     for table in ("programs", "courses", "requirements", "prerequisites", "students",
                   "transcript_entries", "advisor_contacts", "milestones", "course_offerings",
-		  "syllabus_chunks"):
+		  "syllabus_chunks", "terms"):
         cur.execute(f"SELECT COUNT(*) FROM {table}")
         print(f"  {table}: {cur.fetchone()[0]}")
 
