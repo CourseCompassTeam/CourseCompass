@@ -28,8 +28,8 @@ describe('ChatService.sendQuery', () => {
   it('sends the conversation history with the query', async () => {
     const { service, apiClient } = makeService({ type: 'audit', content: {} });
     const history = [
-      { role: 'student', text: 'What is SE 610?' },
-      { role: 'assistant', text: 'SE 610 is Software Architecture.' },
+      { role: 'student', text: 'What is MSSE 635?' },
+      { role: 'assistant', text: 'MSSE 635 is Software Architecture and Design.' },
     ];
 
     await service.sendQuery('What do I need before it?', history);

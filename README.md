@@ -93,8 +93,8 @@ understand follow-ups (built in `src/models/chatHistory.js`):
 {
   "query": "what are its prerequisites?",
   "history": [
-    { "role": "student", "text": "what is SE 610?" },
-    { "role": "assistant", "text": "SE 610 is Software Architecture..." }
+    { "role": "student", "text": "what is MSSE 635?" },
+    { "role": "assistant", "text": "MSSE 635 is Software Architecture and Design..." }
   ]
 }
 ```

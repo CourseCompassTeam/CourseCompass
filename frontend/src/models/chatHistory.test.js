@@ -17,17 +17,23 @@ describe('buildHistory', () => {
 
   it('pairs questions with answers, oldest first', () => {
     const history = buildHistory([
-      question('What is SE 610?'),
-      answer('SE 610 is Software Architecture.', MessageType.RECOMMENDATION),
+      question('What is MSSE 635?'),
+      answer(
+        'MSSE 635 is Software Architecture and Design.',
+        MessageType.RECOMMENDATION,
+      ),
       question('What do I need first?'),
-      answer('You need SE 601.', MessageType.REDIRECT),
+      answer('You need MSSE 610 first.', MessageType.REDIRECT),
     ]);
 
     expect(history).toEqual([
-      { role: 'student', text: 'What is SE 610?' },
-      { role: 'assistant', text: 'SE 610 is Software Architecture.' },
+      { role: 'student', text: 'What is MSSE 635?' },
+      {
+        role: 'assistant',
+        text: 'MSSE 635 is Software Architecture and Design.',
+      },
       { role: 'student', text: 'What do I need first?' },
-      { role: 'assistant', text: 'You need SE 601.' },
+      { role: 'assistant', text: 'You need MSSE 610 first.' },
     ]);
   });
 
