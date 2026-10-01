@@ -41,10 +41,14 @@ def resolve_student_id(request_headers: Any, settings: Settings) -> str:
         ApiError: 401 if a Bearer token is present but invalid.
     """
     bearer = _bearer_token(request_headers)
-    if bearer:
+    env = (settings.environment or '').lower()
+    # Local chat sends a placeholder Bearer token when Clerk is off.
+    # Only real JWTs (three segments) are verified.
+    if bearer and _looks_like_jwt(bearer):
+        return verify_clerk_token(bearer, settings)
+    if bearer and env not in ('local', 'staging', 'test'):
         return verify_clerk_token(bearer, settings)
 
-    env = (settings.environment or '').lower()
     if env in ('local', 'staging', 'test'):
         dev_id = (
             request_headers.get('X-Dev-Student-Id')
@@ -159,6 +163,18 @@ def frontend_api_from_publishable_key(publishable_key: str) -> str:
     if host.startswith('http://') or host.startswith('https://'):
         return host.rstrip('/')
     return f'https://{host}'
+
+
+def _looks_like_jwt(token: str) -> bool:
+    """Returns whether a token has the three-part JWT shape.
+
+    Args:
+        token: Raw Authorization token.
+
+    Returns:
+        True when the token contains two dots.
+    """
+    return token.count('.') == 2
 
 
 def _bearer_token(headers: Any) -> str:

@@ -33,6 +33,18 @@ class IStudentAuditRepository(abc.ABC):
             Completed courses with their credits.
         """
 
+    def get_in_progress_courses(self, student_id: str) -> list[dict]:
+        """Gets transcript entries the student is currently taking.
+
+        Args:
+            student_id: The student to look up.
+
+        Returns:
+            In-progress courses. Empty when the source has none.
+        """
+        del student_id
+        return []
+
     @abc.abstractmethod
     def get_program_requirements(self, student_id: str) -> list[dict]:
         """Gets the requirements of the student's program.
@@ -100,6 +112,40 @@ class ICourseCatalogRepository(abc.ABC):
             The course, or None if it does not exist.
         """
 
+    def find_courses(self, course_id: str) -> list[dict]:
+        """Finds courses for a code or a bare course number.
+
+        Args:
+            course_id: Course UUID, code, or number such as ``697``.
+
+        Returns:
+            Matching course rows. Empty when nothing matches.
+        """
+        course = self.get_course(course_id)
+        if course is None:
+            return []
+        return [course]
+
+    def list_offerings(self) -> list[dict]:
+        """Lists course offerings joined to term dates.
+
+        Returns:
+            Offering rows. Empty when the repository has no term data.
+        """
+        return []
+
+    def list_programs_for_course(self, course_id: str) -> list[str]:
+        """Lists degree programs that require a course.
+
+        Args:
+            course_id: Course UUID.
+
+        Returns:
+            Program names. Empty when the repository has no program link.
+        """
+        del course_id
+        return []
+
     @abc.abstractmethod
     def get_prerequisites(self, course_id: str) -> list[dict]:
         """Gets a course's prerequisites and corequisites.
@@ -129,6 +175,14 @@ class ICourseCatalogRepository(abc.ABC):
         Returns:
             Chunk rows (without embeddings).
         """
+
+    def list_all_syllabus_chunks(self) -> list[dict]:
+        """Lists syllabus text for every course.
+
+        Returns:
+            Rows with course code, chunk index, and chunk text.
+        """
+        return []
 
 
 class ICampusDirectoryRepository(abc.ABC):

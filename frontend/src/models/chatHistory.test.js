@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { MAX_HISTORY_TEXT_LENGTH, buildHistory } from './chatHistory.js';
+import {
+  MAX_HISTORY_TEXT_LENGTH,
+  buildHistory,
+  nextQuestionNumber,
+} from './chatHistory.js';
 import { MessageType } from './message.js';
 
 const question = (text) => ({ type: MessageType.QUERY, content: { text } });
@@ -9,6 +13,20 @@ const answer = (message, type = MessageType.AUDIT) => ({
   content: { message },
 });
 const error = () => ({ type: MessageType.ERROR, content: { message: 'x' } });
+
+describe('nextQuestionNumber', () => {
+  it('counts every student question still on screen', () => {
+    expect(nextQuestionNumber([])).toBe(1);
+    expect(nextQuestionNumber([
+      question('q1'),
+      answer('a1'),
+      question('q2'),
+      answer('a2'),
+      question('q3'),
+      answer('a3'),
+    ])).toBe(4);
+  });
+});
 
 describe('buildHistory', () => {
   it('returns an empty history for a new conversation', () => {

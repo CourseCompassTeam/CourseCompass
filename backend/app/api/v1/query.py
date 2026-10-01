@@ -4,7 +4,9 @@ from fastapi import APIRouter
 from fastapi import Request
 
 from app.api.errors import ApiError
+from app.api.errors import INTERNAL_ERROR
 from app.api.errors import NOT_IMPLEMENTED
+from app.api.errors import TOO_MANY_REQUESTS
 from app.auth.clerk_auth import resolve_student_id
 from app.orchestration.mock_query import answer_query
 from app.orchestration.tool_catalog import TOOL_DEFINITIONS
@@ -50,17 +52,38 @@ def post_query(body: QueryRequest, request: Request) -> QueryResponse:
     if settings is not None:
         student_id = resolve_student_id(request.headers, settings)
 
-    return answer_query(
-        provider,
-        body.query,
-        embedding_provider=getattr(
-            request.app.state, 'embedding_provider', None
-        ),
-        tool_dispatcher=getattr(
-            request.app.state, 'tool_dispatcher', None
-        ),
-        student_id=student_id,
-    )
+    try:
+        return answer_query(
+            provider,
+            body.query,
+            embedding_provider=getattr(
+                request.app.state, 'embedding_provider', None
+            ),
+            tool_dispatcher=getattr(
+                request.app.state, 'tool_dispatcher', None
+            ),
+            student_id=student_id,
+            history=_history_payload(body),
+            question_number=body.questionNumber,
+        )
+    except ApiError:
+        raise
+    except Exception as exc:
+        status_code = getattr(exc, 'code', None)
+        if status_code == 429:
+            status, code = TOO_MANY_REQUESTS
+            raise ApiError(
+                status,
+                code,
+                'The advising model is temporarily busy. '
+                'Try again in a moment.',
+            ) from exc
+        status, code = INTERNAL_ERROR
+        raise ApiError(
+            status,
+            code,
+            'An unexpected error occurred.',
+        ) from exc
 
 
 @router.post('/orchestration/route')
@@ -89,4 +112,23 @@ def route_query(body: QueryRequest, request: Request) -> dict:
             'LLM provider is not configured. Set LLM_PROVIDER=vertex '
             'and GCP_PROJECT_ID.',
         )
-    return provider.choose_tool(body.query, TOOL_DEFINITIONS)
+    return provider.choose_tool(
+        body.query,
+        TOOL_DEFINITIONS,
+        _history_payload(body),
+    )
+
+
+def _history_payload(body: QueryRequest) -> list[dict[str, str]]:
+    """Copies request history into plain dicts.
+
+    Args:
+        body: The query request.
+
+    Returns:
+        Earlier turns, oldest first.
+    """
+    return [
+        {'role': turn.role, 'text': turn.text}
+        for turn in body.history
+    ]

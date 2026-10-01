@@ -1,10 +1,26 @@
 import { useState } from 'react';
 
 import MessageBubble from './MessageBubble.jsx';
+import MilestoneChecklist from './MilestoneChecklist.jsx';
 import { summarizeAudit } from './auditSummary.js';
 
 // Longer course lists start collapsed so the bubble stays easy to scan.
 const COLLAPSED_COURSE_COUNT = 5;
+
+function alternativeNote(content) {
+  const courses = content.nextCourses || [];
+  if (!content.leadCourseNotOfferedNextTerm || courses.length === 0) {
+    return '';
+  }
+  const codes = courses.map((course) => course.code).filter(Boolean);
+  const listed = codes.length <= 1
+    ? codes[0]
+    : `${codes.slice(0, -1).join(', ')} and ${codes[codes.length - 1]}`;
+  const term = content.nextTerm?.name;
+  const when = term ? ` in ${term}` : ' next term';
+  return `${content.leadCourse?.code} is not offered next term. `
+    + `You could take ${listed}${when} instead.`;
+}
 
 /** Degree audit result (US-01). */
 export default function AuditMessageRenderer({ message }) {
@@ -14,6 +30,7 @@ export default function AuditMessageRenderer({ message }) {
   const hasNumbers = audit.completed != null || audit.remaining != null ||
     audit.missing.length > 0 || audit.met;
 
+  const note = alternativeNote(message.content);
   const hiddenCount = audit.missing.length - COLLAPSED_COURSE_COUNT;
   const visibleCourses = showAll || hiddenCount <= 0
     ? audit.missing
@@ -101,6 +118,33 @@ export default function AuditMessageRenderer({ message }) {
             </button>
           )}
         </section>
+      )}
+
+      {(message.content.milestones || []).length > 0 && (
+        <MilestoneChecklist
+          milestones={message.content.milestones}
+          showPrompt={message.content.offerMilestones}
+        />
+      )}
+
+      {note && <p>{note}</p>}
+      {message.content.needsAdvising && message.content.advisingUrl && (
+        <p>
+          {message.content.leadCourse?.code} is not offered next term,
+          and no other required course is open then. Book an advising
+          appointment.
+        </p>
+      )}
+      {message.content.needsAdvising && message.content.advisingUrl && (
+        <a
+          className="button button--secondary"
+          href={message.content.advisingUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {message.content.advisingResourceName
+            ?? 'Book an advising appointment'}
+        </a>
       )}
 
       {hasNumbers && text && (

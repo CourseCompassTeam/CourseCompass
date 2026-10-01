@@ -16,13 +16,18 @@ export function formatCreditBand(min, max) {
   return `${min ?? 0}–${max} credits`;
 }
 
+export const MILESTONE_PROMPT =
+  'Have you considered these milestones at this point in your degree?';
+
 /**
  * @param {{milestones: Array<{label: string, creditMin: ?number,
- *     creditMax: ?number, nextActions: string[]}>}} props
+ *     creditMax: ?number, nextActions: string[]}>,
+ *     showPrompt?: boolean}} props
  */
-export default function MilestoneChecklist({ milestones }) {
+export default function MilestoneChecklist({ milestones, showPrompt = false }) {
   return (
     <div className="milestones">
+      {showPrompt && <p>{MILESTONE_PROMPT}</p>}
       {milestones.map((milestone) => {
         const band = formatCreditBand(milestone.creditMin, milestone.creditMax);
         return (

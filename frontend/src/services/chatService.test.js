@@ -20,7 +20,7 @@ describe('ChatService.sendQuery', () => {
 
     expect(apiClient.post).toHaveBeenCalledWith(
       QUERY_ENDPOINT,
-      { query: 'What do I need to graduate?', history: [] },
+      { query: 'What do I need to graduate?', history: [], questionNumber: 1 },
       'token-123',
     );
   });
@@ -36,7 +36,7 @@ describe('ChatService.sendQuery', () => {
 
     expect(apiClient.post).toHaveBeenCalledWith(
       QUERY_ENDPOINT,
-      { query: 'What do I need before it?', history },
+      { query: 'What do I need before it?', history, questionNumber: 1 },
       'token-123',
     );
   });

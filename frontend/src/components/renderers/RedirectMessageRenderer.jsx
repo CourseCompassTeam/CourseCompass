@@ -1,11 +1,18 @@
 import MessageBubble from './MessageBubble.jsx';
+import MilestoneChecklist from './MilestoneChecklist.jsx';
 
 /**
  * Out-of-scope or unverifiable question: point the student to a person or
  * resource instead of guessing (QA-02, US-05, US-06).
  */
 export default function RedirectMessageRenderer({ message }) {
-  const { message: text, resourceName, url } = message.content;
+  const {
+    message: text,
+    resourceName,
+    url,
+    milestones = [],
+    offerMilestones = false,
+  } = message.content;
 
   return (
     <MessageBubble
@@ -17,6 +24,12 @@ export default function RedirectMessageRenderer({ message }) {
         {text ??
           "I can't answer that one reliably. Please contact your advisor."}
       </p>
+      {milestones.length > 0 && (
+        <MilestoneChecklist
+          milestones={milestones}
+          showPrompt={offerMilestones}
+        />
+      )}
       {url && (
         <a
           className="button button--secondary"

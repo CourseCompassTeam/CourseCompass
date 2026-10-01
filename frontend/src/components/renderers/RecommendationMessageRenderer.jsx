@@ -7,6 +7,7 @@ export default function RecommendationMessageRenderer({ message }) {
     message: text,
     courses = [],
     milestones = [],
+    offerMilestones = false,
     resourceName,
     url,
     advisingResourceName,
@@ -24,6 +25,11 @@ export default function RecommendationMessageRenderer({ message }) {
                 <span className="course__code">{course.code}</span>
                 <span className="course__title">{course.title}</span>
               </div>
+              {course.programs?.length > 0 && (
+                <p className="course__description">
+                  {course.programs.join(', ')}
+                </p>
+              )}
               {course.description && (
                 <p className="course__description">{course.description}</p>
               )}
@@ -31,7 +37,12 @@ export default function RecommendationMessageRenderer({ message }) {
           ))}
         </ul>
       )}
-      {milestones.length > 0 && <MilestoneChecklist milestones={milestones} />}
+      {milestones.length > 0 && (
+        <MilestoneChecklist
+          milestones={milestones}
+          showPrompt={offerMilestones}
+        />
+      )}
       {url && (
         <a
           className="button button--secondary"

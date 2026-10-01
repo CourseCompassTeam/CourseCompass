@@ -49,6 +49,11 @@ class ToolDispatcher:
                 student_id,
                 str(args.get('course_id') or ''),
             )
+        if intent == 'list_term_offerings':
+            return self._tools.list_term_offerings(
+                student_id,
+                str(args.get('scope') or 'next'),
+            )
         if intent == 'recommend_courses':
             return self._tools.recommend_courses(
                 student_id,
@@ -61,7 +66,10 @@ class ToolDispatcher:
         if intent == 'get_career_services':
             return self._tools.get_career_services(student_id)
         if intent == 'get_next_milestones':
-            return self._tools.get_next_milestones(student_id)
+            return self._tools.get_next_milestones(
+                student_id,
+                str(args.get('interest') or ''),
+            )
         return {
             'resourceName': 'Book an advising appointment',
             'url': 'https://example.com/advising',

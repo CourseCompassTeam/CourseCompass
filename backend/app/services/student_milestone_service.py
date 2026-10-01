@@ -33,24 +33,39 @@ class StudentMilestoneService:
             audit = self._audit.audit(student_id)
             credits = int(audit.get('creditsCompleted') or 0)
         matching = [
-            {
-                'label': row.get('label'),
-                'creditMin': row.get('credit_min'),
-                'creditMax': row.get('credit_max'),
-                'nextActions': row.get('next_actions') or [],
-            }
+            _milestone_payload(row)
             for row in rows
             if _in_credit_band(credits, row)
         ]
-        return matching or [
-            {
-                'label': row.get('label'),
-                'creditMin': row.get('credit_min'),
-                'creditMax': row.get('credit_max'),
-                'nextActions': row.get('next_actions') or [],
-            }
-            for row in rows
+        return matching or [_milestone_payload(row) for row in rows]
+
+    def list_milestones(self) -> list[dict]:
+        """Lists every milestone, regardless of credit band.
+
+        Returns:
+            Milestone payloads in credit order.
+        """
+        return [
+            _milestone_payload(row)
+            for row in self._milestones.get_milestones()
         ]
+
+
+def _milestone_payload(row: dict) -> dict:
+    """Shapes a milestone row for the API.
+
+    Args:
+        row: Milestone table row.
+
+    Returns:
+        Label, credit band, and next actions.
+    """
+    return {
+        'label': row.get('label'),
+        'creditMin': row.get('credit_min'),
+        'creditMax': row.get('credit_max'),
+        'nextActions': row.get('next_actions') or [],
+    }
 
 
 def _in_credit_band(credits: int, row: dict) -> bool:

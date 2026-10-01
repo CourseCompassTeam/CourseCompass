@@ -52,6 +52,7 @@ PREREQUISITES = [
     ("MSSE 640", "MSSE 610", "prereq"),
     ("MSSE 642", "MSSE 610", "prereq"),
     ("MSSE 692", "MSSE 610", "prereq"),
+    ("MSSE 696", "MSSE 692", "prereq"),
 ]
 
 # Term dates from the team's course schedule. term_name uses the short

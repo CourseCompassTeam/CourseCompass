@@ -134,6 +134,12 @@ def test_resolve_dev_header_when_no_bearer():
     assert resolve_student_id(headers, settings) == 'test_clerk_user_1'
 
 
+def test_resolve_ignores_dev_placeholder_token():
+    settings = _settings(environment='local')
+    headers = {'Authorization': 'Bearer dev-token'}
+    assert resolve_student_id(headers, settings) == ''
+
+
 def test_resolve_anonymous_when_no_identity():
     settings = _settings()
     assert resolve_student_id({}, settings) == ''
@@ -152,7 +158,8 @@ def test_post_query_uses_dev_student_header():
     captured = {}
 
     def _fake_answer(provider, query, embedding_provider=None,
-                     tool_dispatcher=None, student_id=''):
+                     tool_dispatcher=None, student_id='', history=None):
+        del history
         captured['student_id'] = student_id
         from app.schemas.query import QueryResponse
         return QueryResponse(

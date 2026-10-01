@@ -88,7 +88,30 @@ _DETAIL_RE = re.compile(
     re.I,
 )
 _SCHEDULE_RE = re.compile(
-    r'\b(schedule|timetable|this term|next term|fits? my)\b',
+    r'\b(timetable|my schedule|fits? my|fit my schedule)\b',
+    re.I,
+)
+_OFFERING_RE = re.compile(
+    r'\b(offered|offering|next term|this term|current term)\b',
+    re.I,
+)
+_CATALOG_OFFERING_RE = re.compile(
+    r'\b(what|which)\b.{0,40}\b(courses|classes)\b.{0,40}'
+    r'\b(offered|offering|available)\b'
+    r'|\b(courses|classes)\b.{0,30}\b(offered|available)\b'
+    r'|\bwhat(?:\'s| is) offered\b',
+    re.I,
+)
+_PLAN_RE = re.compile(
+    r'\b('
+    r'what(?:\'s| is)? next|'
+    r'take next|'
+    r'should i take next|'
+    r'course should i take|'
+    r'which course(?: should i take)? next|'
+    r'what should i take|'
+    r'take instead'
+    r')\b',
     re.I,
 )
 
@@ -99,6 +122,8 @@ def answer_query(
     embedding_provider: EmbeddingProvider | None = None,
     tool_dispatcher: ToolDispatcher | None = None,
     student_id: str = '',
+    history: list[dict[str, str]] | None = None,
+    question_number: int = 0,
 ) -> QueryResponse:
     """Runs choose_tool -> tool data -> phrase_response.
 
@@ -113,11 +138,25 @@ def answer_query(
         tool_dispatcher: Live MCPTools dispatcher, if the database
             is configured.
         student_id: Server-injected student id (QA-03).
+        history: Earlier turns, oldest first. The current question is
+            not included.
+        question_number: This question's place in the chat, from 1.
+            Milestones are added on the 3rd and 4th question of every
+            four when the student did not already ask about them.
 
     Returns:
         A QueryResponse the frontend can render.
     """
-    choice = provider.choose_tool(query, TOOL_DEFINITIONS)
+    prior = history or []
+    choice = provider.choose_tool(query, TOOL_DEFINITIONS, prior)
+    choice = _with_offering_choice(choice, query, prior)
+    if _asks_for_a_plan(query):
+        arguments = dict(choice.get('arguments') or {})
+        choice = {
+            'tool': 'audit_degree',
+            'arguments': arguments,
+            'redirect': False,
+        }
     if tool_dispatcher is not None:
         response_type, facts = _live_result(
             tool_dispatcher, choice, query, student_id
@@ -126,9 +165,16 @@ def answer_query(
         response_type, facts = _mock_result(
             choice, query, embedding_provider
         )
-    facts = _with_phrase_context(facts, query)
+    facts = _with_phrase_context(facts, query, prior)
+    facts = _with_periodic_milestones(
+        facts,
+        tool_dispatcher,
+        student_id,
+        _resolved_question_number(question_number, prior),
+    )
     message = provider.phrase_response(facts)
     content = dict(facts)
+    content.pop('conversationHistory', None)
     content['message'] = message
     return QueryResponse(
         id=str(uuid.uuid4()),
@@ -170,6 +216,13 @@ def _mock_result(
     if tool == 'audit_degree':
         return 'audit', dict(_AUDIT_RESULT)
 
+    if tool == 'list_term_offerings':
+        return 'recommendation', {
+            'nextTerm': None,
+            'courses': [],
+            'offeringNote': 'No term offerings are loaded.',
+        }
+
     if tool == 'get_course_description' or (
             tool == 'get_career_services' and named_course):
         course = _lookup_course(named_course or 'CS501')
@@ -185,7 +238,7 @@ def _mock_result(
         if embedding_provider is not None:
             ranked = _rank_with_embeddings(
                 embedding_provider, interest, leftover
-            )
+            )[:1]
             search_method = 'gemini-embedding-001'
         facts = {
             'courses': ranked,
@@ -241,7 +294,11 @@ def _live_result(
     if tool == 'audit_degree':
         return 'audit', facts
     if tool == 'get_course_description':
-        return 'recommendation', _with_career_handoff(facts)
+        if not _OFFERING_RE.search(query or ''):
+            facts = _with_career_handoff(facts)
+        return 'recommendation', facts
+    if tool == 'list_term_offerings':
+        return 'recommendation', facts
     if tool in ('recommend_courses', 'get_next_milestones'):
         return 'recommendation', _with_career_handoff(facts)
     if tool == 'build_schedule':
@@ -253,26 +310,105 @@ def _live_result(
     return 'redirect', facts
 
 
+def _resolved_question_number(
+    question_number: int,
+    history: list[dict[str, str]],
+) -> int:
+    """Counts this question from the start of the chat.
+
+    Args:
+        question_number: Count sent by the client, or 0 when omitted.
+        history: Earlier turns. Used only when the client sent no count.
+
+    Returns:
+        The question number, starting at 1.
+    """
+    if question_number > 0:
+        return question_number
+    prior = sum(1 for turn in history if turn.get('role') == 'student')
+    return prior + 1
+
+
+def _offers_milestones(question_number: int) -> bool:
+    """Returns whether this question should include a milestone nudge.
+
+    The 3rd and 4th questions of every four get the nudge. Questions
+    that already asked about milestones still receive them from the tool.
+
+    Args:
+        question_number: This question's place in the chat.
+
+    Returns:
+        True for questions 3, 4, 7, 8, and so on.
+    """
+    if question_number < 3:
+        return False
+    return question_number % 4 in (0, 3)
+
+
+def _with_periodic_milestones(
+    facts: dict[str, Any],
+    dispatcher: ToolDispatcher | None,
+    student_id: str,
+    question_number: int,
+) -> dict[str, Any]:
+    """Adds the current milestone on every 3rd and 4th question.
+
+    Args:
+        facts: Tool result about to be phrased.
+        dispatcher: Live tool dispatcher, if the database is configured.
+        student_id: Server-injected student id.
+        question_number: This question's place in the chat.
+
+    Returns:
+        Facts, plus milestones when this question is a nudge turn.
+    """
+    if not _offers_milestones(question_number):
+        return facts
+    merged = dict(facts)
+    merged['offerMilestones'] = True
+    if merged.get('milestones') or dispatcher is None:
+        return merged
+    extra = dispatcher.dispatch(
+        'get_next_milestones',
+        student_id,
+        {},
+    )
+    milestones = extra.get('milestones') or []
+    if milestones:
+        merged['milestones'] = milestones
+    return merged
+
+
 def _with_phrase_context(
     facts: dict[str, Any],
     query: str,
+    history: list[dict[str, str]] | None = None,
 ) -> dict[str, Any]:
     """Adds detail/schedule flags so phrasing can follow the student.
 
     Args:
         facts: Mock tool result.
         query: Original student question.
+        history: Earlier turns for reference resolution.
 
     Returns:
         Facts plus detailLevel and optional schedule notes.
     """
     merged = dict(facts)
     merged['studentQuery'] = query
+    if history:
+        merged['conversationHistory'] = [
+            {'role': turn.get('role'), 'text': turn.get('text')}
+            for turn in history
+            if turn.get('role') in ('student', 'assistant')
+            and str(turn.get('text') or '').strip()
+        ]
     if _DETAIL_RE.search(query or ''):
         merged['detailLevel'] = 'detailed'
     else:
         merged['detailLevel'] = 'short'
-    if _SCHEDULE_RE.search(query or ''):
+    if _SCHEDULE_RE.search(query or '') and not _OFFERING_RE.search(query or ''):
         merged['scheduleChecked'] = False
         merged['scheduleNote'] = (
             'Schedule fit has not been checked. Do not claim the '
@@ -360,6 +496,86 @@ def _cosine(left: list[float], right: list[float]) -> float:
     if left_norm == 0 or right_norm == 0:
         return 0.0
     return dot / (left_norm * right_norm)
+
+
+def _asks_for_a_plan(query: str) -> bool:
+    """True when the student is choosing a next course.
+
+    A catalog question about what is offered stays on the term list.
+
+    Args:
+        query: Current student question.
+
+    Returns:
+        Whether to run a degree audit.
+    """
+    if _CATALOG_OFFERING_RE.search(query or ''):
+        return False
+    return bool(_PLAN_RE.search(query or ''))
+
+
+def _with_offering_choice(
+    choice: dict[str, Any],
+    query: str,
+    history: list[dict[str, str]],
+) -> dict[str, Any]:
+    """Routes term-offering questions to catalog data.
+
+    A question about one course, including "this" from earlier turns,
+    stays on that course. A question about which courses are offered
+    lists the term.
+
+    Args:
+        choice: Tool choice from the model.
+        query: Current student question.
+        history: Earlier turns.
+
+    Returns:
+        The original choice, or an offering tool choice.
+    """
+    if not _OFFERING_RE.search(query or ''):
+        return choice
+    if _asks_for_a_plan(query):
+        return choice
+    scope = 'current' if re.search(
+        r'\b(this term|current term)\b', query or '', re.I
+    ) else 'next'
+    if _CATALOG_OFFERING_RE.search(query or ''):
+        return {
+            'tool': 'list_term_offerings',
+            'arguments': {'scope': scope},
+            'redirect': False,
+        }
+    named = _course_from(choice.get('arguments') or {}, query)
+    if not named:
+        named = _course_from_history(history)
+    if named:
+        return {
+            'tool': 'get_course_description',
+            'arguments': {'course_id': named},
+            'redirect': False,
+        }
+    return {
+        'tool': 'list_term_offerings',
+        'arguments': {'scope': scope},
+        'redirect': False,
+    }
+
+
+def _course_from_history(history: list[dict[str, str]]) -> str | None:
+    """Finds the latest course code mentioned in earlier turns.
+
+    Args:
+        history: Earlier student and assistant turns.
+
+    Returns:
+        A course code, or None.
+    """
+    for turn in reversed(history or []):
+        match = _COURSE_RE.search(str(turn.get('text') or ''))
+        if match:
+            return match.group(1).replace(' ', '').upper()
+    return None
 
 
 def _course_from(arguments: dict[str, Any], query: str) -> str | None:

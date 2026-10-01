@@ -29,6 +29,22 @@ const ANSWER_TYPES = new Set([
  *     before the new question, oldest first.
  * @returns {Array<{role: string, text: string}>}
  */
+/**
+ * Counts the question about to be sent, from 1 for the whole chat.
+ *
+ * Uses every student question still on screen, not the clipped history.
+ *
+ * @param {Array<{type: string}>} messages The conversation before the new
+ *     question.
+ * @returns {number}
+ */
+export function nextQuestionNumber(messages) {
+  const asked = messages.filter(
+    (message) => message.type === MessageType.QUERY,
+  ).length;
+  return asked + 1;
+}
+
 export function buildHistory(messages) {
   const exchanges = [];
   for (let i = 0; i < messages.length - 1; i += 1) {
