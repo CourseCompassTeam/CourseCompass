@@ -36,22 +36,36 @@ COURSES = [
     ("MSSE 642", "Software Assurance", "Provides a detailed explanation of software assurances practices, methods, and tools required throughout the software development life-cycle. Applies life-cycle knowledge in exploring common programming errors and evaluates common software testing tools."),
     ("MSES 602", "Introduction to DevOps Engineering", "Introduces the methodologies, tools, and insights of the DevOps process and what it can do for an organization. The course covers development, deployment and operations including infrastructure as code, continuous deployment, testing automation, validation, monitoring and security."),
     ("MSCC 697", "Information Technology Research Methods", "Through discussions, students become familiar with the foundational concepts of developing a problem statement for further investigation. Presents students with the skills and knowledge to develop their capabilities to identify, categorize, evaluate and synthesize a body of knowledge for a specific purpose."),
-    # The full prerequisite rule for 692 cannot be stored in the prerequisites
-    # table (see below), so it is kept in the description text.
     ("MSSE 692", "Software Engineering Practicum I", "Begins development of a distributed software system using the principles of Service Oriented Architectures. Encourages use of a cloud provider like Amazon Web Services, Windows Azure, or the Google App Engine. Prerequisite(s): MSSE 610, MSSE 695, and 30 semester hour credits of MSSE coursework, or permission of instructor."),
     ("MSSE 696", "Software Engineering Practicum II", "Completes development of the software system begun in MSSE 692. Concludes with a presentation and paper to mock stakeholders, such as senior management or investors."),
 ]
 
-# Real prerequisites from the catalog. MSSE 692 also requires MSSE 695, 30
-# credits of MSSE coursework, or instructor permission. Only MSSE 610 is
-# seeded: 695 is not one of the 12 degree courses (no row to point at), and the
-# table has no way to express a credit threshold or an "or permission" option.
+# Real prerequisites from the catalog.
 PREREQUISITES = [
     ("MSSE 610", "MSSE 601", "prereq"),
     ("MSSE 635", "MSSE 610", "prereq"),
     ("MSSE 640", "MSSE 610", "prereq"),
     ("MSSE 642", "MSSE 610", "prereq"),
+    ("MSSE 692", "MSSE 601", "prereq"),
     ("MSSE 692", "MSSE 610", "prereq"),
+    ("MSSE 692", "MSSE 635", "prereq"),
+    ("MSSE 692", "MSSE 640", "prereq"),
+    ("MSSE 692", "MSSE 642", "prereq"),
+    ("MSSE 692", "MSES 602", "prereq"),
+    ("MSSE 692", "MSSE 613", "prereq"),
+    ("MSSE 692", "MSSE 603", "prereq"),
+    ("MSSE 692", "MSSE 615", "prereq"),
+    ("MSSE 692", "MSCC 697", "prereq"),
+    ("MSSE 696", "MSSE 601", "prereq"),
+    ("MSSE 696", "MSSE 610", "prereq"),
+    ("MSSE 696", "MSSE 635", "prereq"),
+    ("MSSE 696", "MSSE 640", "prereq"),
+    ("MSSE 696", "MSSE 642", "prereq"),
+    ("MSSE 696", "MSES 602", "prereq"),
+    ("MSSE 696", "MSSE 613", "prereq"),
+    ("MSSE 696", "MSSE 603", "prereq"),
+    ("MSSE 696", "MSSE 615", "prereq"),
+    ("MSSE 696", "MSCC 697", "prereq"),
     ("MSSE 696", "MSSE 692", "prereq"),
 ]
 
