@@ -16,13 +16,16 @@ export default function SyllabusView({ course, syllabus, nextTerm, summary }) {
   return (
     <div className="syllabus">
       <header className="syllabus__header">
-        <p className="audit__eyebrow">
-          Syllabus{course.credits != null && <> · {course.credits} credits</>}
-        </p>
-        <h3 className="syllabus__title">
-          <span className="course__code">{course.code}</span>{' '}
-          {course.title}
-        </h3>
+        <p className="audit__eyebrow">Syllabus</p>
+        <div className="syllabus__title-row">
+          <h3 className="syllabus__title">
+            <span className="course__code">{course.code}</span>{' '}
+            {course.title}
+          </h3>
+          {course.credits != null && (
+            <span className="syllabus__credits">{course.credits} credits</span>
+          )}
+        </div>
         {nextTerm?.name && course.offeredNextTerm != null && (
           <p
             className={`syllabus__offering${
