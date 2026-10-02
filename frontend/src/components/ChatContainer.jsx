@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 
+import { buildHistory, nextQuestionNumber } from '../models/chatHistory.js';
 import { MessageType, createMessage } from '../models/message.js';
 import ChatInput from './ChatInput.jsx';
 import { getRenderer } from './renderers/index.js';
 
+// One per implemented feature: audit (US-01), recommendations (US-03),
+// next steps outside of class (US-07).
 const SUGGESTIONS = [
   'What do I still need to graduate?',
-  'Recommend a course that fits my interest in project management',
-  'Can my transfer credit count toward a requirement?',
+  'Which electives fit my interest in cloud computing?',
+  'What are my next steps outside of class?',
 ];
 
 /**
@@ -26,15 +29,18 @@ export default function ChatContainer({ chatService }) {
 
   async function handleSubmit(query) {
     const append = (message) => setMessages((prev) => [...prev, message]);
+    // Built before the new question is added, so it holds only earlier turns.
+    const history = buildHistory(messages);
+    const questionNumber = nextQuestionNumber(messages);
 
     append(createMessage({ type: MessageType.QUERY, content: { text: query } }));
     setIsLoading(true);
     try {
-      append(await chatService.sendQuery(query));
+      append(await chatService.sendQuery(query, history, questionNumber));
     } catch (error) {
       append(createMessage({
         type: MessageType.ERROR,
-        content: { message: error.message },
+        content: { message: error.message, code: error.code },
       }));
     } finally {
       setIsLoading(false);

@@ -26,12 +26,21 @@ export class ChatService {
   /**
    * Sends a student's question to the backend.
    * @param {string} query The student's natural-language question.
+   * @param {Array<{role: string, text: string}>} history Earlier exchanges,
+   *     oldest first (see models/chatHistory.js).
+   * @param {number} questionNumber This question's place in the chat,
+   *     from 1. The backend uses it to offer milestones on the 3rd and
+   *     4th question of every four.
    * @returns {Promise<object>} The response as a Message.
    * @throws {ApiError} If the request fails.
    */
-  async sendQuery(query) {
+  async sendQuery(query, history = [], questionNumber = 1) {
     const token = await this._authService.getSessionToken();
-    const raw = await this._apiClient.post(QUERY_ENDPOINT, { query }, token);
+    const raw = await this._apiClient.post(
+      QUERY_ENDPOINT,
+      { query, history, questionNumber },
+      token,
+    );
     return createMessage({
       id: raw?.id,
       type: this.#classifyResponseType(raw),

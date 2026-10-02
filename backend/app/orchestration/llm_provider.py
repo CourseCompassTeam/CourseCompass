@@ -30,8 +30,12 @@ class LLMProvider(abc.ABC):
     """An LLM that can choose from a fixed set of tools."""
 
     @abc.abstractmethod
-    def choose_tool(self, query: str,
-                    tools: list[dict[str, Any]]) -> ToolChoice:
+    def choose_tool(
+        self,
+        query: str,
+        tools: list[dict[str, Any]],
+        history: list[dict[str, str]] | None = None,
+    ) -> ToolChoice:
         """Asks the LLM which tool, if any, answers the query.
 
         Args:
@@ -40,6 +44,8 @@ class LLMProvider(abc.ABC):
             tools: The tool definitions the LLM may choose from. Each item
                 has ``name``, ``description``, and ``parameters`` (JSON
                 Schema object).
+            history: Earlier turns, oldest first. Used only to resolve
+                references in the current question.
 
         Returns:
             The chosen tool name and its arguments, or a redirect.

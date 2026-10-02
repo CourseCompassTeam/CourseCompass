@@ -17,8 +17,11 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         'name': 'audit_degree',
         'description': (
             'Return degree requirements or a student audit: program name, '
-            'credits completed, credits remaining, and required courses. '
-            'Use this when the student asks what a degree requires.'
+            'credits completed, credits remaining, required courses, and '
+            'the prerequisite order. Use this when the student asks what '
+            'a degree requires, which courses are left, what order to '
+            'take them in, which course is needed first, or what course '
+            'they should take next.'
         ),
         'parameters': {
             'type': 'object',
@@ -37,15 +40,18 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         'name': 'get_course_description',
         'description': (
-            'Return a course description and the advising URL for a '
-            'specific course.'
+            'Return a course description, when it is offered, and the '
+            'advising URL. Use this when the student asks about one '
+            'course, including whether that course is offered next term.'
         ),
         'parameters': {
             'type': 'object',
             'properties': {
                 'course_id': {
                     'type': 'string',
-                    'description': 'Course code or ID, e.g. CS501.',
+                    'description': (
+                        'Course code or number, e.g. MSCC 697 or 697.'
+                    ),
                 },
             },
             'required': ['course_id'],
@@ -56,7 +62,8 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         'name': 'recommend_courses',
         'description': (
             'Recommend courses that fit the student interests and degree '
-            'requirements.'
+            'requirements. Also returns milestones that match the '
+            'interest or the student\'s current stage.'
         ),
         'parameters': {
             'type': 'object',
@@ -67,6 +74,25 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
                 },
             },
             'required': ['interest'],
+            'additionalProperties': False,
+        },
+    },
+    {
+        'name': 'list_term_offerings',
+        'description': (
+            'List the courses published for the next term, or the '
+            'current term when the student says this term. Use this '
+            'when they ask which courses are offered, not whether one '
+            'named course fits their personal timetable.'
+        ),
+        'parameters': {
+            'type': 'object',
+            'properties': {
+                'scope': {
+                    'type': 'string',
+                    'description': 'next or current. Default next.',
+                },
+            },
             'additionalProperties': False,
         },
     },
@@ -108,11 +134,20 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         'name': 'get_next_milestones',
         'description': (
-            'Return non-course milestones appropriate for the student stage.'
+            'Return non-course milestones for the student stage. Use '
+            'this for next steps outside class, internships, a resume, '
+            'or a portfolio. Pass interest when they name a topic.'
         ),
         'parameters': {
             'type': 'object',
-            'properties': {},
+            'properties': {
+                'interest': {
+                    'type': 'string',
+                    'description': (
+                        'Topic from the question, such as internships.'
+                    ),
+                },
+            },
             'additionalProperties': False,
         },
     },

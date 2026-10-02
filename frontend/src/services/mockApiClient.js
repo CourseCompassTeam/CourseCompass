@@ -9,27 +9,62 @@ import { ApiError } from './apiClient.js';
 
 const SAMPLE_RESPONSES = {
   audit: {
-    message:
-      'You have completed 27 of 36 credits. Three required courses remain.',
-    creditsRemaining: 9,
+    message: 'You have completed 15 of 36 credits. Seven required courses ' +
+      'remain, starting with Software Requirements and Processes.',
+    programName: 'Software Engineering (M.S.)',
+    creditsCompleted: 15,
+    creditsRemaining: 21,
+    creditsRequired: 36,
     requirementsMet: false,
-    missingCourses: ['SE 640', 'SE 660', 'SE 699'],
+    missingCourses: [
+      'MSSE 610', 'MSSE 613', 'MSSE 635', 'MSSE 640', 'MSSE 642',
+      'MSSE 692', 'MSSE 696',
+    ],
+    requiredCourses: [
+      ['MSSE 601', 'Software Engineering Fundamentals'],
+      ['MSSE 603', 'Software Engineering Leadership'],
+      ['MSSE 610', 'Software Requirements and Processes'],
+      ['MSSE 613', 'Software Project Management'],
+      ['MSSE 615', 'Software Engineering and Society'],
+      ['MSSE 635', 'Software Architecture and Design'],
+      ['MSSE 640', 'Software Quality and Test'],
+      ['MSSE 642', 'Software Assurance'],
+      ['MSSE 692', 'Software Engineering Practicum I'],
+      ['MSSE 696', 'Software Engineering Practicum II'],
+    ].map(([code, title]) => ({ code, title, credits: 3, category: 'core' })),
   },
   recommendation: {
     message: 'Based on your interest, these courses fit your open ' +
       'requirements:',
     courses: [
       {
-        code: 'SE 615',
+        code: 'MSSE 613',
         title: 'Software Project Management',
         description: 'Planning, estimating, and tracking software projects.',
       },
       {
-        code: 'SE 635',
-        title: 'Cloud Application Architecture',
-        description: 'Designing and deploying scalable cloud services.',
+        code: 'MSES 602',
+        title: 'Introduction to DevOps Engineering',
+        description: 'Deploying and operating software with cloud tooling.',
       },
     ],
+  },
+  milestones: {
+    message: 'You are at the Foundations stage. Here are a few things to ' +
+      'work on outside of class:',
+    milestones: [
+      {
+        label: 'Foundations',
+        creditMin: 0,
+        creditMax: 12,
+        nextActions: [
+          'Review your degree plan with your advisor',
+          'Start a portfolio repository on GitHub',
+        ],
+      },
+    ],
+    resourceName: 'Career Services',
+    url: 'https://example.com/career-services',
   },
   redirect: {
     message: 'That question is outside what I can answer reliably. ' +
@@ -39,9 +74,12 @@ const SAMPLE_RESPONSES = {
   },
 };
 
+// [sample, response type, pattern]. The first match wins.
 const INTENT_KEYWORDS = [
-  ['audit', /graduat|credit|remaining|left|audit|progress/i],
-  ['recommendation', /recommend|interest|elective|suggest|next term/i],
+  ['milestones', 'recommendation', /next steps|milestone|outside of class/i],
+  ['audit', 'audit', /graduat|credit|remaining|left|audit|progress/i],
+  ['recommendation', 'recommendation',
+    /recommend|interest|elective|suggest|next term/i],
 ];
 
 export class MockAPIClient {
@@ -68,12 +106,12 @@ export class MockAPIClient {
       throw new ApiError(500, 'INTERNAL_ERROR', 'Simulated server error.');
     }
 
-    const match = INTENT_KEYWORDS.find(([, pattern]) => pattern.test(query));
-    const type = match ? match[0] : 'redirect';
+    const match = INTENT_KEYWORDS.find(([, , pattern]) => pattern.test(query));
+    const [sample, type] = match ?? ['redirect', 'redirect'];
     return {
       id: crypto.randomUUID(),
       type,
-      content: SAMPLE_RESPONSES[type],
+      content: SAMPLE_RESPONSES[sample],
       timestamp: new Date().toISOString(),
     };
   }

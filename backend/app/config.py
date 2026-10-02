@@ -18,7 +18,14 @@ class Settings:
         app_name: Service name exposed in health and info responses.
         environment: Deployment environment label (local, staging, prod).
         database_url: PostgreSQL connection string (optional in skeleton).
-        clerk_secret_key: Clerk key used to verify session tokens.
+        clerk_secret_key: Clerk Backend API secret (optional; not required
+            for JWKS JWT verify).
+        clerk_publishable_key: Frontend publishable key; used to derive
+            JWKS URL when ``CLERK_JWKS_URL`` is unset.
+        clerk_jwks_url: JWKS endpoint for session token verification.
+        clerk_jwt_key: Optional PEM public key for networkless verify.
+        clerk_issuer: Expected JWT ``iss`` (Frontend API URL).
+        clerk_authorized_parties: Allowed ``azp`` values (frontend origins).
         llm_provider: Provider key (``vertex`` for Vertex AI Gemini).
         llm_api_key: Unused for Vertex (ADC). Kept for other vendors.
         llm_model: Vertex Gemini chat model id.
@@ -33,6 +40,11 @@ class Settings:
     environment: str
     database_url: str
     clerk_secret_key: str
+    clerk_publishable_key: str
+    clerk_jwks_url: str
+    clerk_jwt_key: str
+    clerk_issuer: str
+    clerk_authorized_parties: tuple[str, ...]
     llm_provider: str
     llm_api_key: str
     llm_model: str
@@ -59,11 +71,38 @@ def load_settings() -> Settings:
         for origin in origins_raw.split(',')
         if origin.strip()
     )
+    parties_raw = os.getenv(
+        'CLERK_AUTHORIZED_PARTIES',
+        ','.join(origins),
+    )
+    parties = tuple(
+        party.strip()
+        for party in parties_raw.split(',')
+        if party.strip()
+    )
+
+    publishable = os.getenv('CLERK_PUBLISHABLE_KEY', '')
+    jwks_url = os.getenv('CLERK_JWKS_URL', '')
+    issuer = os.getenv('CLERK_ISSUER', '')
+    if publishable and (not jwks_url or not issuer):
+        try:
+            from app.auth.clerk_auth import frontend_api_from_publishable_key
+            frontend_api = frontend_api_from_publishable_key(publishable)
+            issuer = issuer or frontend_api
+            jwks_url = jwks_url or f'{frontend_api}/.well-known/jwks.json'
+        except ValueError:
+            pass
+
     return Settings(
         app_name=os.getenv('APP_NAME', 'coursecompass-api'),
         environment=os.getenv('APP_ENV', 'local'),
         database_url=os.getenv('DATABASE_URL', ''),
         clerk_secret_key=os.getenv('CLERK_SECRET_KEY', ''),
+        clerk_publishable_key=publishable,
+        clerk_jwks_url=jwks_url,
+        clerk_jwt_key=os.getenv('CLERK_JWT_KEY', ''),
+        clerk_issuer=issuer,
+        clerk_authorized_parties=parties,
         llm_provider=os.getenv('LLM_PROVIDER', ''),
         llm_api_key=os.getenv('LLM_API_KEY', ''),
         llm_model=os.getenv('LLM_MODEL', 'gemini-2.5-flash'),

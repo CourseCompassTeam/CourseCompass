@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import re
 from datetime import date
 from datetime import datetime
 from uuid import UUID
+
+_NUMBER_ONLY = re.compile(r'(?i)^(?:class\s+)?(\d{3,})$')
 
 
 def serialize_value(value):
@@ -53,3 +56,21 @@ def normalize_code(value: str) -> str:
         Uppercase code with spaces removed.
     """
     return str(value or '').replace(' ', '').upper()
+
+
+def course_number_query(value: str) -> str:
+    """Returns a course number when the lookup is only that number.
+
+    ``697`` and ``class 697`` match. A full code such as ``MSCC 697``
+    does not, so that lookup stays an exact code match.
+
+    Args:
+        value: Raw course id from the question or tool call.
+
+    Returns:
+        The digits, or an empty string when this is not number-only.
+    """
+    match = _NUMBER_ONLY.match(str(value or '').strip())
+    if match is None:
+        return ''
+    return match.group(1)

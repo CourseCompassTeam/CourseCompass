@@ -20,7 +20,23 @@ describe('ChatService.sendQuery', () => {
 
     expect(apiClient.post).toHaveBeenCalledWith(
       QUERY_ENDPOINT,
-      { query: 'What do I need to graduate?' },
+      { query: 'What do I need to graduate?', history: [], questionNumber: 1 },
+      'token-123',
+    );
+  });
+
+  it('sends the conversation history with the query', async () => {
+    const { service, apiClient } = makeService({ type: 'audit', content: {} });
+    const history = [
+      { role: 'student', text: 'What is MSSE 635?' },
+      { role: 'assistant', text: 'MSSE 635 is Software Architecture and Design.' },
+    ];
+
+    await service.sendQuery('What do I need before it?', history);
+
+    expect(apiClient.post).toHaveBeenCalledWith(
+      QUERY_ENDPOINT,
+      { query: 'What do I need before it?', history, questionNumber: 1 },
       'token-123',
     );
   });

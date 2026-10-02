@@ -3,6 +3,28 @@
 from typing import Any, Literal
 
 from pydantic import BaseModel
+from pydantic import Field
+from pydantic import field_validator
+
+_MAX_HISTORY_TURNS = 6
+_MAX_HISTORY_TEXT = 1000
+
+
+class HistoryTurn(BaseModel):
+    """One earlier chat turn sent with a follow-up question.
+
+    Attributes:
+        role: ``student`` or ``assistant``.
+        text: The turn text. The current question is not included.
+    """
+
+    role: Literal['student', 'assistant']
+    text: str
+
+    @field_validator('text')
+    @classmethod
+    def _clip_text(cls, value: str) -> str:
+        return value.strip()[:_MAX_HISTORY_TEXT]
 
 
 class QueryRequest(BaseModel):
@@ -10,9 +32,26 @@ class QueryRequest(BaseModel):
 
     Attributes:
         query: The student's natural-language question.
+        history: Up to three earlier exchanges, oldest first.
+        questionNumber: How many student questions this one is, counting
+            from 1 for the whole chat. Used to offer milestones on the
+            3rd and 4th question of every four.
     """
 
     query: str
+    history: list[HistoryTurn] = Field(default_factory=list)
+    questionNumber: int = 0
+
+    @field_validator('history')
+    @classmethod
+    def _limit_history(cls, value: list[HistoryTurn]) -> list[HistoryTurn]:
+        kept = [turn for turn in value if turn.text]
+        return kept[-_MAX_HISTORY_TURNS:]
+
+    @field_validator('questionNumber')
+    @classmethod
+    def _non_negative(cls, value: int) -> int:
+        return max(0, value)
 
 
 class QueryResponse(BaseModel):

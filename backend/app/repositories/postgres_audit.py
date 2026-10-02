@@ -67,6 +67,33 @@ class PostgresAuditRepository(IStudentAuditRepository):
             ).fetchall()
         return [serialize_row(row) for row in rows]
 
+    def get_in_progress_courses(self, student_id: str) -> list[dict]:
+        """Gets in-progress transcript rows for a student.
+
+        Args:
+            student_id: The student to look up.
+
+        Returns:
+            Courses the student is currently taking.
+        """
+        student = self.get_student(student_id)
+        if student is None:
+            return []
+        sql = """
+            SELECT c.course_id, c.code, c.title, c.credits,
+                   t.status, t.term
+            FROM transcript_entries t
+            JOIN courses c ON c.course_id = t.course_id
+            WHERE t.student_id = %s
+              AND t.status = 'in_progress'
+            ORDER BY c.code
+        """
+        with self._database.connect() as connection:
+            rows = connection.execute(
+                sql, (student['student_id'],)
+            ).fetchall()
+        return [serialize_row(row) for row in rows]
+
     def get_program_requirements(self, student_id: str) -> list[dict]:
         """Gets requirements for the student's enrolled program.
 

@@ -19,6 +19,11 @@ def _settings(**overrides) -> Settings:
         environment='test',
         database_url='',
         clerk_secret_key='',
+        clerk_publishable_key='',
+        clerk_jwks_url='',
+        clerk_jwt_key='',
+        clerk_issuer='',
+        clerk_authorized_parties=(),
         llm_provider='vertex',
         llm_api_key='',
         llm_model='gemini-2.5-flash',
@@ -94,6 +99,30 @@ def test_choose_tool_redirect_sentinel():
     choice = provider.choose_tool('How do I pay my tuition?', TOOL_DEFINITIONS)
     assert choice['redirect'] is True
     assert choice['tool'] is None
+
+
+def test_choose_tool_includes_previous_turns():
+    client = MagicMock()
+    client.models.generate_content.return_value = _response_with_function(
+        'get_course_description',
+        {'course_id': 'MSCC 697'},
+    )
+    provider = VertexGeminiProvider(
+        project='coursecompass-509519',
+        client=client,
+    )
+    provider.choose_tool(
+        'What are its prerequisites?',
+        TOOL_DEFINITIONS,
+        [{
+            'role': 'assistant',
+            'text': 'MSCC 697 is Information Technology Research Methods.',
+        }],
+    )
+    contents = client.models.generate_content.call_args.kwargs['contents']
+    assert 'MSCC 697 is Information Technology Research Methods.' in contents
+    assert 'Current question:' in contents
+    assert contents.endswith('What are its prerequisites?')
 
 
 def test_phrase_response_returns_text():

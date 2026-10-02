@@ -8,3 +8,4 @@ httpx==0.28.1
 psycopg[binary]==3.2.13
 pgvector
 python-dotenv
+PyJWT[crypto]==2.10.1
