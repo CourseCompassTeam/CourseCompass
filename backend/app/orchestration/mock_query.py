@@ -91,6 +91,19 @@ _SYLLABUS_RE = re.compile(
     r'\b(syllabus|syllabi|assignments?|weekly topics|week by week)\b',
     re.I,
 )
+_INTERNAL_REQUEST_RE = re.compile(
+    r'(system prompt|phrase prompt|tool json|unredacted|'
+    r'database[_\s]?url|cors_origins|clerk key|maintenance mode|'
+    r'environment variable|hidden instruction|'
+    r'ignore (?:all |your )?previous instructions|'
+    r'reveal your instructions|dump the)',
+    re.I,
+)
+_LEAKED_OUTPUT_RE = re.compile(
+    r'"(conversationHistory|studentQuery|detailLevel|'
+    r'offerMilestones|summarizeSyllabus|scheduleChecked|'
+    r'syllabusText|searchMethod)"',
+)
 _SCHEDULE_RE = re.compile(
     r'\b(timetable|my schedule|fits? my|fit my schedule)\b',
     re.I,
@@ -171,13 +184,19 @@ def answer_query(
             choice, query, embedding_provider
         )
     facts = _with_phrase_context(facts, query, prior)
-    facts = _with_periodic_milestones(
-        facts,
-        tool_dispatcher,
-        student_id,
-        _resolved_question_number(question_number, prior),
-    )
-    message = provider.phrase_response(facts)
+    if _INTERNAL_REQUEST_RE.search(query or ''):
+        message = _internal_refusal(facts)
+    else:
+        facts = _with_periodic_milestones(
+            facts,
+            tool_dispatcher,
+            student_id,
+            _resolved_question_number(question_number, prior),
+        )
+        message = _redact_internal_leak(
+            provider.phrase_response(facts),
+            facts,
+        )
     content = dict(facts)
     content.pop('conversationHistory', None)
     content['message'] = message
@@ -519,6 +538,41 @@ def _asks_for_a_plan(query: str) -> bool:
     if _CATALOG_OFFERING_RE.search(query or ''):
         return False
     return bool(_PLAN_RE.search(query or ''))
+
+
+def _internal_refusal(facts: dict[str, Any]) -> str:
+    """Returns a fixed reply when the student asks for internal data.
+
+    Args:
+        facts: Tool result, used only for an advising URL.
+
+    Returns:
+        A short refusal that does not echo tool JSON.
+    """
+    url = (
+        facts.get('advisingUrl')
+        or facts.get('url')
+        or _REDIRECT_RESULT['url']
+    )
+    return (
+        'I can only help with your courses and degree plan. '
+        f'Book an advising appointment at {url}.'
+    )
+
+
+def _redact_internal_leak(message: str, facts: dict[str, Any]) -> str:
+    """Replaces a reply that echoes the tool payload.
+
+    Args:
+        message: Text returned by the phrasing model.
+        facts: Tool result, used only for an advising URL.
+
+    Returns:
+        The original message, or a refusal when it quotes internal JSON.
+    """
+    if _LEAKED_OUTPUT_RE.search(message or ''):
+        return _internal_refusal(facts)
+    return message
 
 
 def _with_syllabus_choice(
