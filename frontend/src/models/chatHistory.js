@@ -19,17 +19,6 @@ const ANSWER_TYPES = new Set([
 ]);
 
 /**
- * Turns the chat so far into the history for the next request.
- *
- * Only complete exchanges are kept: a student question followed directly by
- * an answer that has text. Questions that ended in an error are dropped, so
- * roles always alternate student, assistant, student, ...
- *
- * @param {Array<{type: string, content: object}>} messages The conversation
- *     before the new question, oldest first.
- * @returns {Array<{role: string, text: string}>}
- */
-/**
  * Counts the question about to be sent, from 1 for the whole chat.
  *
  * Uses every student question still on screen, not the clipped history.
@@ -45,6 +34,17 @@ export function nextQuestionNumber(messages) {
   return asked + 1;
 }
 
+/**
+ * Turns the chat so far into the history for the next request.
+ *
+ * Only complete exchanges are kept: a student question followed directly by
+ * an answer that has text. Questions that ended in an error are dropped, so
+ * roles always alternate student, assistant, student, ...
+ *
+ * @param {Array<{type: string, content: object}>} messages The conversation
+ *     before the new question, oldest first.
+ * @returns {Array<{role: string, text: string}>}
+ */
 export function buildHistory(messages) {
   const exchanges = [];
   for (let i = 0; i < messages.length - 1; i += 1) {

@@ -66,6 +66,43 @@ const SAMPLE_RESPONSES = {
     resourceName: 'Career Services',
     url: 'https://example.com/career-services',
   },
+  syllabus: {
+    message: 'Here is a summary of the syllabus for MSSE 635 Software ' +
+      'Architecture and Design:\n\nThe course covers architectural ' +
+      'patterns, design principles, and system design at scale.\n\n' +
+      'The weekly topics are:\n*   Week 1: Architectural thinking\n' +
+      '*   Week 2: Architectural patterns and styles',
+    summarizeSyllabus: true,
+    nextTerm: { name: '2026 FALL 8W2' },
+    courses: [
+      {
+        code: 'MSSE 635',
+        title: 'Software Architecture and Design',
+        credits: 3,
+        offeredNextTerm: true,
+        offeredTerms: ['2026 FALL 8W2', '2027 SPR 8W1'],
+        prerequisites: ['MSSE 610'],
+        syllabusText:
+          'MSSE-635 Software Architecture and Design. This online course ' +
+          'explores architectural patterns, design principles, and system ' +
+          'design at scale. Students learn to make architectural ' +
+          'decisions and understand trade-offs.\n' +
+          'Course objectives: design software architectures that satisfy ' +
+          'functional and quality attribute requirements. Evaluate and ' +
+          'select appropriate architectural patterns. Document ' +
+          'architectural decisions and rationale.\n' +
+          'Weekly topics: Week 1, architectural thinking and quality ' +
+          'attributes. Week 2, architectural patterns and styles. Week 3, ' +
+          'microservices architecture. Week 4, event-driven and ' +
+          'message-based architecture. Week 5, distributed systems ' +
+          'fundamentals. Week 6, API design and integration patterns. ' +
+          'Week 7, architecture documentation and ADRs. Week 8, ' +
+          'architecture evaluation and final presentation.',
+      },
+    ],
+    advisingResourceName: 'Book an advising appointment',
+    advisingUrl: 'https://example.com/advising',
+  },
   redirect: {
     message: 'That question is outside what I can answer reliably. ' +
       'An academic advisor can help with this.',
@@ -76,6 +113,7 @@ const SAMPLE_RESPONSES = {
 
 // [sample, response type, pattern]. The first match wins.
 const INTENT_KEYWORDS = [
+  ['syllabus', 'recommendation', /syllabus|weekly topics|week by week/i],
   ['milestones', 'recommendation', /next steps|milestone|outside of class/i],
   ['audit', 'audit', /graduat|credit|remaining|left|audit|progress/i],
   ['recommendation', 'recommendation',
