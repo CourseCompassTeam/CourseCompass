@@ -1,3 +1,4 @@
+import FormattedText from './FormattedText.jsx';
 import MessageBubble from './MessageBubble.jsx';
 import MilestoneChecklist from './MilestoneChecklist.jsx';
 
@@ -20,10 +21,10 @@ export default function RedirectMessageRenderer({ message }) {
       variant="redirect"
       timestamp={message.timestamp}
     >
-      <p>
-        {text ??
+      <FormattedText
+        text={text ??
           "I can't answer that one reliably. Please contact your advisor."}
-      </p>
+      />
       {milestones.length > 0 && (
         <MilestoneChecklist
           milestones={milestones}
