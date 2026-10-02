@@ -329,6 +329,32 @@ def test_third_and_fourth_questions_include_milestones():
     assert 'milestones' not in second.content
 
 
+def test_syllabus_follow_up_uses_the_history_course():
+    provider = _provider(None, redirect=True, message='From the syllabus.')
+    dispatcher = MagicMock()
+    dispatcher.dispatch.return_value = {
+        'courses': [{
+            'code': 'MSSE 692',
+            'title': 'Practicum I',
+            'syllabusText': 'Weekly topics: Week 1, project initiation.',
+        }],
+    }
+    response = answer_query(
+        provider,
+        'Can you provide more syllabus information about this class '
+        'and the type of assignment?',
+        tool_dispatcher=dispatcher,
+        history=[{
+            'role': 'assistant',
+            'text': 'MSSE 692 Software Engineering Practicum I',
+        }],
+    )
+    assert dispatcher.dispatch.call_args.args[0] == 'get_course_description'
+    assert dispatcher.dispatch.call_args.args[2]['course_id'] == 'MSSE692'
+    assert response.content['summarizeSyllabus'] is True
+    assert response.content['detailLevel'] == 'detailed'
+
+
 def test_post_query_uses_mock_pipeline():
     app = create_app(_settings())
     app.state.llm_provider = _provider(

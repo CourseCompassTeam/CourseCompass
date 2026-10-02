@@ -87,6 +87,10 @@ _DETAIL_RE = re.compile(
     r'go deeper|in depth|in-depth|elaborate)\b',
     re.I,
 )
+_SYLLABUS_RE = re.compile(
+    r'\b(syllabus|syllabi|assignments?|weekly topics|week by week)\b',
+    re.I,
+)
 _SCHEDULE_RE = re.compile(
     r'\b(timetable|my schedule|fits? my|fit my schedule)\b',
     re.I,
@@ -149,6 +153,7 @@ def answer_query(
     """
     prior = history or []
     choice = provider.choose_tool(query, TOOL_DEFINITIONS, prior)
+    choice = _with_syllabus_choice(choice, query, prior)
     choice = _with_offering_choice(choice, query, prior)
     if _asks_for_a_plan(query):
         arguments = dict(choice.get('arguments') or {})
@@ -404,10 +409,12 @@ def _with_phrase_context(
             if turn.get('role') in ('student', 'assistant')
             and str(turn.get('text') or '').strip()
         ]
-    if _DETAIL_RE.search(query or ''):
+    if _DETAIL_RE.search(query or '') or _SYLLABUS_RE.search(query or ''):
         merged['detailLevel'] = 'detailed'
     else:
         merged['detailLevel'] = 'short'
+    if _SYLLABUS_RE.search(query or ''):
+        merged['summarizeSyllabus'] = True
     if _SCHEDULE_RE.search(query or '') and not _OFFERING_RE.search(query or ''):
         merged['scheduleChecked'] = False
         merged['scheduleNote'] = (
@@ -512,6 +519,36 @@ def _asks_for_a_plan(query: str) -> bool:
     if _CATALOG_OFFERING_RE.search(query or ''):
         return False
     return bool(_PLAN_RE.search(query or ''))
+
+
+def _with_syllabus_choice(
+    choice: dict[str, Any],
+    query: str,
+    history: list[dict[str, str]],
+) -> dict[str, Any]:
+    """Routes a syllabus question to the course it refers to.
+
+    Args:
+        choice: Tool choice from the model.
+        query: Current student question.
+        history: Earlier turns.
+
+    Returns:
+        get_course_description when a course can be resolved, else
+        the original choice.
+    """
+    if not _SYLLABUS_RE.search(query or ''):
+        return choice
+    named = _course_from(choice.get('arguments') or {}, query)
+    if not named:
+        named = _course_from_history(history)
+    if not named:
+        return choice
+    return {
+        'tool': 'get_course_description',
+        'arguments': {'course_id': named},
+        'redirect': False,
+    }
 
 
 def _with_offering_choice(

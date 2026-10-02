@@ -96,12 +96,16 @@ class MCPTools:
         next_term = _next_term(offerings, today)
         offered_names = _terms_by_code(offerings)
         next_name = next_term['name'] if next_term else ''
+        syllabus = self._catalog.syllabus_text_by_code()
         for course in courses:
             code = str(course.get('code') or course_id)
             course['prerequisites'] = self._catalog.get_prerequisites(code)
             terms = offered_names.get(code, [])
             course['offeredTerms'] = terms
             course['offeredNextTerm'] = next_name in terms
+            syllabus_text = syllabus.get(code, '')
+            if syllabus_text:
+                course['syllabusText'] = syllabus_text
         advisor = self._directory.get_advisor_contact(student_id)
         facts = {
             'courses': courses,
