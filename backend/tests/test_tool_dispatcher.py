@@ -263,6 +263,50 @@ def test_syllabus_text_ranks_a_course_the_description_misses():
     assert 'penetration testing' in ranked[0]['syllabusText']
 
 
+def test_course_description_includes_the_full_syllabus():
+    class _SyllabusRepo(_FakeCatalogRepo):
+        def find_courses(self, course_id: str):
+            del course_id
+            return [{
+                'course_id': 'c692',
+                'code': 'MSSE 692',
+                'title': 'Practicum I',
+                'description': 'Catalog blurb.',
+                'credits': 3,
+            }]
+
+        def list_all_syllabus_chunks(self):
+            return [
+                {
+                    'code': 'MSSE 692',
+                    'chunk_index': 0,
+                    'chunk_text': 'Applied practicum overview.',
+                },
+                {
+                    'code': 'MSSE 692',
+                    'chunk_index': 2,
+                    'chunk_text': (
+                        'Weekly topics: Week 1, project initiation. '
+                        'Week 8, delivery and presentation.'
+                    ),
+                },
+            ]
+
+    catalog = CourseCatalogService(_SyllabusRepo())
+    tools = MCPTools(
+        AuditService(_FakeAuditRepo(), catalog),
+        catalog,
+        CampusDirectoryService(_FakeDirectory()),
+        StudentMilestoneService(_FakeMilestones(), AuditService(
+            _FakeAuditRepo(), catalog
+        )),
+    )
+    facts = tools.get_course_description('s1', 'MSSE 692')
+    text = facts['courses'][0]['syllabusText']
+    assert 'Applied practicum overview.' in text
+    assert 'Week 8, delivery and presentation.' in text
+
+
 def test_answer_query_uses_live_dispatcher_for_audit():
     provider = _provider(
         'audit_degree',

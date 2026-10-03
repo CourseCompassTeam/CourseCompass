@@ -1,5 +1,8 @@
+import FormattedText from './FormattedText.jsx';
 import MessageBubble from './MessageBubble.jsx';
 import MilestoneChecklist from './MilestoneChecklist.jsx';
+import SyllabusView from './SyllabusView.jsx';
+import { parseSyllabus } from './syllabus.js';
 
 /** Course recommendations (US-03) and next steps outside of class (US-07). */
 export default function RecommendationMessageRenderer({ message }) {
@@ -12,12 +15,29 @@ export default function RecommendationMessageRenderer({ message }) {
     url,
     advisingResourceName,
     advisingUrl,
+    summarizeSyllabus = false,
+    nextTerm,
   } = message.content;
+
+  // A syllabus question about one course gets the syllabus layout, built
+  // from the stored syllabus. Anything else falls back to the course list.
+  const syllabus = summarizeSyllabus && courses.length === 1
+    ? parseSyllabus(courses[0].syllabusText)
+    : null;
 
   return (
     <MessageBubble from="assistant" timestamp={message.timestamp}>
-      {text && <p>{text}</p>}
-      {courses.length > 0 && (
+      {syllabus ? (
+        <SyllabusView
+          course={courses[0]}
+          syllabus={syllabus}
+          nextTerm={nextTerm}
+          summary={text}
+        />
+      ) : (
+        text && <FormattedText text={text} />
+      )}
+      {!syllabus && courses.length > 0 && (
         <ul className="courses">
           {courses.map((course) => (
             <li key={course.code} className="course">

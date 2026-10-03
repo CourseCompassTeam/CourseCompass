@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import FormattedText from './FormattedText.jsx';
 import MessageBubble from './MessageBubble.jsx';
 import MilestoneChecklist from './MilestoneChecklist.jsx';
 import { summarizeAudit } from './auditSummary.js';
@@ -38,7 +39,7 @@ export default function AuditMessageRenderer({ message }) {
 
   return (
     <MessageBubble from="assistant" timestamp={message.timestamp}>
-      {!hasNumbers && text && <p>{text}</p>}
+      {!hasNumbers && text && <FormattedText text={text} />}
       {hasNumbers && <div className="audit">
         <p className="audit__eyebrow">
           Degree audit
@@ -150,7 +151,7 @@ export default function AuditMessageRenderer({ message }) {
       {hasNumbers && text && (
         <details className="explanation">
           <summary>Show full explanation</summary>
-          <p>{text}</p>
+          <FormattedText text={text} />
         </details>
       )}
     </MessageBubble>
