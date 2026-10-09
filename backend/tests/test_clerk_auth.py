@@ -158,8 +158,9 @@ def test_post_query_uses_dev_student_header():
     captured = {}
 
     def _fake_answer(provider, query, embedding_provider=None,
-                     tool_dispatcher=None, student_id='', history=None):
-        del history
+                     tool_dispatcher=None, student_id='', history=None,
+                     question_number=0):
+        del history, question_number
         captured['student_id'] = student_id
         from app.schemas.query import QueryResponse
         return QueryResponse(
