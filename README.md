@@ -79,7 +79,14 @@ backend/
   tests/            unit tests
   tests/integration/  API integration tests (in-memory repos, scripted LLM)
   Dockerfile        Cloud Run container image
-frontend/           React + Vite chat UI
+frontend/
+  src/
+    components/     ChatContainer, ChatInput, and message renderers
+    models/         message types and chat history helpers
+    services/       ChatService, APIClient, AuthService, MockAPIClient
+    auth/           Clerk root and session wiring
+    styles.css      chat UI styles
+  .env.example      VITE_API_BASE_URL, Clerk, mock API flags
 migrations/         node-pg-migrate schema migrations
 seeds/              dev/test seed data (courses, transcripts, syllabus chunks)
 scripts/            gcloud auth, Cloud Run deploy, LLM smoke helpers
