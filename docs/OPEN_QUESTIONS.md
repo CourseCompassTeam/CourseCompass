@@ -18,7 +18,7 @@ purpose, so the team can decide together.
 7. **MCP transport.** ADR-004 says internal components use direct function
    calls, but the Container Diagram shows an MCP server talking to the
    API Gateway over JSON-RPC. Which one?
-8. **Schema gaps and typos** in the Detailed Design:
+8. ~~Schema gaps and typos in the Detailed Design~~ CLEARED. All items were fixed in the table migrations::
    - `courses` has no description column, but US-02 returns course descriptions.
    - There's no link from a Clerk user to a `students` row.
    - `StudentMilestoneService` needs milestone data, but there's no milestones table.
@@ -28,7 +28,7 @@ purpose, so the team can decide together.
    - Typos: `courses.courses_id`, `schedule_items.student_term_id` (it should
      probably be `schedule_term_id`), and `TIMESTAMPZ` (should be `TIMESTAMPTZ`).
 9. **Python linter and formatter** to enforce the Google style guide.
-10. **Seed data content.** Which courses and which test students?
+10. ~~Seed data content.~~ CLEARED
 11. **PR template and GitHub branch protection settings.**
 <<<<<<< HEAD
 12. **Dependency versions.** `migrations/package.json` uses `latest` and
