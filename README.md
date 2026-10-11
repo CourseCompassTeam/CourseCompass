@@ -1,39 +1,66 @@
 # CourseCompass
 
 An AI advising chatbot for graduate students. Students can ask about degree
-progress, course descriptions, and recommendations, and get routed to
-advising or career services when a question is out of scope.
+progress, course descriptions, term offerings, interest-based recommendations,
+syllabus summaries, and milestones, and get routed to advising or career
+services when a question is out of scope.
 
 Built by Team Production Ready.
 
-> **Status:** project scaffold only. The files contain structure, signatures,
-> and docstrings, not working logic. Decisions the team hasn't made yet are
-> listed in [docs/OPEN_QUESTIONS.md](docs/OPEN_QUESTIONS.md).
-
 ## Stack
 
-| Layer      | Technology                                  |
-|------------|---------------------------------------------|
-| Frontend   | JavaScript, React, Vite, Vitest (ADR-005)   |
-| Auth       | Clerk (`@clerk/react`)                      |
-| Backend    | Python, FastAPI, pytest (ADR-006)           |
-| Database   | PostgreSQL + pgvector (ADR-002)             |
-| Migrations | node-pg-migrate                             |
-| LLM        | Provider TBD (Gemini, OpenAI, or Claude)    |
-| Hosting    | Vercel (frontend), Google Cloud Run + Cloud SQL (backend) (ADR-003) |
+| Layer      | Technology                                           |
+|------------|------------------------------------------------------|
+| Frontend   | JavaScript, React, Vite, Vitest (ADR-005)            |
+| Auth       | Clerk (`@clerk/react`)                               |
+| Backend    | Python, FastAPI, pytest (ADR-006)                    |
+| Database   | PostgreSQL + pgvector on Cloud SQL (ADR-002)         |
+| Migrations | node-pg-migrate                                      |
+| LLM        | Vertex AI Gemini 2.5 Flash + gemini-embedding-001    |
+| Hosting    | Vercel (frontend), Google Cloud Run (backend) (ADR-003) |
 
 ## Architecture
 
-The backend is a modular monolith (ADR-001) with these layers:
+The backend is a modular monolith (ADR-001):
 
 ```
 API  ->  orchestration  ->  tools  ->  domain services  ->  repositories  ->  PostgreSQL
 ```
 
 - The frontend talks to the backend over REST (ADR-004).
-- The LLM never touches data directly. It can only pick from a fixed set of
-  tools in `MCPTools`.
-- Repositories are the only code that reaches the database.
+- Gemini never reads the database. It only chooses a tool and phrases verified
+  tool JSON.
+- The server injects `student_id` from a Clerk JWT (or `X-Dev-Student-Id` in
+  local/staging/test). The model cannot supply identity (QA-03).
+- Repositories are the only code that runs SQL.
+
+### Query flow
+
+1. The chat sends `query`, short `history`, and `questionNumber`.
+2. FastAPI resolves the student id and calls `answer_query`.
+3. Gemini picks one tool from the fixed catalog.
+4. `ToolDispatcher` runs that tool with the server student id.
+5. Domain services read Cloud SQL through repositories.
+6. Gemini phrases the tool JSON into the reply the student sees.
+
+Interest search embeds the question and each leftover course’s title,
+description, and syllabus text with Vertex embeddings, then ranks by cosine
+similarity in the API. Stored `syllabus_chunks.embedding` values may still be
+null; the ivfflat index is unused until embeddings are persisted.
+
+### Tools
+
+| Tool | Purpose |
+|------|---------|
+| `audit_degree` | Credits remaining, required courses, what to take next |
+| `get_course_description` | One course, offerings, prerequisites, syllabus text |
+| `recommend_courses` | Leftover courses ranked by interest |
+| `list_term_offerings` | Courses published for the next or current term |
+| `get_next_milestones` | Non-course steps (resume, internships, portfolio) |
+| `get_advisor_contact` | Advising booking link |
+| `get_career_services` | Career Services link |
+| `build_schedule` | Saved schedule lookup; advising handoff if none |
+| `redirect_out_of_scope` | Financial aid, account changes, medical/legal, etc. |
 
 ## Folder map
 
@@ -41,53 +68,72 @@ API  ->  orchestration  ->  tools  ->  domain services  ->  repositories  ->  Po
 backend/
   app/
     api/            REST endpoints (/api/v1/...) and the error envelope
+    auth/           Clerk JWT verification and student id resolution
     schemas/        request/response models
-    orchestration/  intent router, tool dispatcher, response assembler, LLM provider interface
+    orchestration/  LLM provider, tool catalog, dispatcher, query pipeline
     tools/          MCPTools: the fixed tool set the LLM may call
-    services/       domain logic (audit, course catalog, campus directory, milestones)
-    repositories/   data access interfaces
+    services/       audit, course catalog, campus directory, milestones
+    repositories/   PostgreSQL data access
+    embeddings/     Vertex embedding client
     ingestion/      data source ingestion interface (QA-04)
-  tests/            pytest
-  Dockerfile        Cloud Run container image (SCRUM-11)
-frontend/           React + Vite app (chat UI: SCRUM-9)
+  tests/            unit tests
+  tests/integration/  API integration tests (in-memory repos, scripted LLM)
+  Dockerfile        Cloud Run container image
+frontend/
+  src/
+    components/     ChatContainer, ChatInput, and message renderers
+    models/         message types and chat history helpers
+    services/       ChatService, APIClient, AuthService, MockAPIClient
+    auth/           Clerk root and session wiring
+    styles.css      chat UI styles
+  .env.example      VITE_API_BASE_URL, Clerk, mock API flags
 migrations/         node-pg-migrate schema migrations
-seeds/              dev/test-only seed data
-scripts/            gcloud auth + Cloud Run deploy helpers
+seeds/              dev/test seed data (courses, transcripts, syllabus chunks)
+scripts/            gcloud auth, Cloud Run deploy, LLM smoke helpers
 docs/               open questions for the team
 ```
 
 ## Configuration
 
 All configuration comes from environment variables. Copy `.env.example` to
-`.env` and fill in the values. Never commit `.env`.
+`.env` for the backend and `frontend/.env.example` to `frontend/.env.local`
+for the frontend. Never commit either file.
+
+Important backend variables:
+
+| Variable | Purpose |
+|----------|---------|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `LLM_PROVIDER=vertex` | Enables Gemini orchestration |
+| `GCP_PROJECT_ID` / `GCP_LOCATION` | Vertex project and region |
+| `LLM_MODEL` | Default `gemini-2.5-flash` |
+| `EMBEDDING_MODEL` / `EMBEDDING_DIMENSIONS` | Default `gemini-embedding-001` / `768` |
+| `CORS_ORIGINS` | Comma-separated browser origins |
+| Clerk JWKS / JWT settings | Session verification |
 
 ## Local setup
 
 ### Frontend
 
-```
+```bash
 cd frontend
 npm install
+cp .env.example .env.local
 npm run dev      # http://localhost:5173
 ```
 
-Copy `frontend/.env.example` to `frontend/.env.local`, which git ignores:
+In `frontend/.env.local`:
 
-- **`VITE_USE_MOCK_API=true`** returns sample responses, so the chat works
-  without the backend. Type "simulate error" in a question to see the error
-  state.
-- **No `VITE_CLERK_PUBLISHABLE_KEY`** runs in dev mode with a fake signed-in
-  user. Add the key to turn on real Clerk sign-in.
+- **`VITE_USE_MOCK_API=true`** — sample responses, no backend.
+- **`VITE_USE_MOCK_API=false`** and **`VITE_API_BASE_URL=http://127.0.0.1:8080`** —
+  talk to the local API.
+- **No `VITE_CLERK_PUBLISHABLE_KEY`** — fake signed-in user (`dev-token`).
+  Add the key for real Clerk sign-in.
 
-Other commands: `npm test` (Vitest), `npm run build`, and `npm run preview`.
+Other commands: `npm test` (Vitest), `npm run build`, `npm run preview`.
 
-The chat follows the Detailed Design's Chat component. `ChatContainer`
-renders each message through a `MessageRenderer` picked by message type
-(`src/components/renderers/`). `ChatService` talks to the backend through
-the `APIClient` and `AuthService` interfaces (`src/services/`).
-
-Each question is sent with a short conversation history so the backend can
-understand follow-ups (built in `src/models/chatHistory.js`):
+Each question is sent with short history and a question number
+(`src/models/chatHistory.js`):
 
 ```json
 {
@@ -95,13 +141,15 @@ understand follow-ups (built in `src/models/chatHistory.js`):
   "history": [
     { "role": "student", "text": "what is MSSE 635?" },
     { "role": "assistant", "text": "MSSE 635 is Software Architecture and Design..." }
-  ]
+  ],
+  "questionNumber": 2
 }
 ```
 
 `history` is oldest first, never includes the current `query`, and holds at
-most the last 3 complete exchanges (6 messages). Questions that ended in an
-error are left out, so roles always alternate.
+most the last 3 complete exchanges (6 messages). `questionNumber` counts every
+student question still on screen so milestone nudges stay correct after the
+history window clips.
 
 ### Backend (FastAPI)
 
@@ -110,7 +158,22 @@ cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
+```
+
+Point `DATABASE_URL` at Cloud SQL through the local Auth Proxy (typical local
+port `5434`), then:
+
+```bash
+export LLM_PROVIDER=vertex
+export GCP_PROJECT_ID=coursecompass-509519
+export GCP_LOCATION=us-central1
+export LLM_MODEL=gemini-2.5-flash
+export EMBEDDING_MODEL=gemini-embedding-001
+export EMBEDDING_DIMENSIONS=768
+export APP_ENV=local
+export CORS_ORIGINS=http://localhost:5173
+
+uvicorn app.main:app --host 127.0.0.1 --port 8080
 ```
 
 Smoke checks:
@@ -118,36 +181,33 @@ Smoke checks:
 ```bash
 curl http://127.0.0.1:8080/health
 curl http://127.0.0.1:8080/api/info
-pytest
+curl -X POST http://127.0.0.1:8080/api/v1/query \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer dev-token' \
+  -H 'X-Dev-Student-Id: user_3K1pC0YksFOD8HW1dIiz4ITDt90' \
+  -d '{"query":"What do I still need to graduate?","history":[],"questionNumber":1}'
 ```
 
-### Vertex AI Gemini (orchestration LLM)
+Interactive OpenAPI docs: `http://127.0.0.1:8080/docs`.
 
-The orchestration layer talks to **Vertex AI Gemini** through
-`LLMProvider` / `VertexGeminiProvider` (ADC auth — no API key).
+Seed data (dev/test only):
 
 ```bash
-# one-time: enable API + ensure gcloud ADC
+# from repo root, with DATABASE_URL set
+python seeds/seed.py
+```
+
+### Vertex AI Gemini
+
+```bash
 gcloud services enable aiplatform.googleapis.com --project=coursecompass-509519
 gcloud auth application-default login   # local only
-
-export LLM_PROVIDER=vertex
-export GCP_PROJECT_ID=coursecompass-509519
-export GCP_LOCATION=us-central1
-export LLM_MODEL=gemini-2.5-flash
-export EMBEDDING_MODEL=gemini-embedding-001
-export EMBEDDING_DIMENSIONS=768
 
 ./scripts/smoke_llm.sh
 ./scripts/smoke_embed.sh
 ```
 
-Syllabus search uses **`gemini-embedding-001`** at **768** dimensions so
-vectors fit `syllabus_chunks.embedding` (`vector(768)`). That client is
-`EmbeddingProvider` / `VertexEmbeddingProvider` — ingest and catalog
-services call it, not the orchestration layer.
-
-Live routing smoke (with the API running and env set):
+Tool routing smoke (does not call tools or the database):
 
 ```bash
 curl -X POST http://127.0.0.1:8080/api/v1/orchestration/route \
@@ -155,29 +215,74 @@ curl -X POST http://127.0.0.1:8080/api/v1/orchestration/route \
   -d '{"query":"How many credits do I still need?"}'
 ```
 
-`POST /api/v1/query` is still a stub; routing is available at
-`/api/v1/orchestration/route` until ToolDispatcher and MCPTools are wired.
+## Testing
 
-Domain routes such as `POST /api/v1/query` still return
-`501 NOT_IMPLEMENTED` with the standard error envelope.
+### Backend
 
-### Deploy backend to Cloud Run
+```bash
+cd backend
+source .venv/bin/activate
+python -m pytest tests -q                 # unit + integration
+python -m pytest tests/integration -q     # API integration only
+```
+
+Unit tests cover services, auth, providers, and the query pipeline with fakes.
+Integration tests under `tests/integration/` run HTTP → orchestration → tools →
+services with in-memory repositories and a scripted LLM. They do not call live
+Cloud SQL, Clerk JWKS, or Vertex.
+
+### Frontend
+
+```bash
+cd frontend
+npm test
+```
+
+There is no automated browser e2e suite that drives Vercel → Cloud Run → Cloud
+SQL → Clerk → Vertex in one flow.
+
+## Deploy backend to Cloud Run
 
 Requires `gcloud` authenticated to a project with billing enabled.
 
 ```bash
 chmod +x scripts/*.sh
-export GCP_PROJECT_ID="your-gcp-project-id"
+export GCP_PROJECT_ID="coursecompass-509519"
 # Optional: GCP_REGION=us-central1 SERVICE_NAME=coursecompass-api
 ./scripts/auth-gcp.sh          # or: ./scripts/auth-gcp.sh --login
-./scripts/deploy-backend.sh
 ```
 
-The deploy script builds `backend/Dockerfile` with Cloud Build and deploys
-the image to Cloud Run (`--allow-unauthenticated` for staging smoke tests).
+**Important:** `scripts/deploy-backend.sh` uses `--set-env-vars`, which
+**replaces** all Cloud Run environment variables and can drop `DATABASE_URL`
+and Clerk settings. Prefer building the image, then deploying only the image
+so existing env vars stay in place:
 
-Local database setup is still an open question. Frontend `package.json`
-dependency versions remain `latest` until the team pins them.
+```bash
+gcloud builds submit backend \
+  --tag us-central1-docker.pkg.dev/${GCP_PROJECT_ID}/coursecompass/coursecompass-api:TAG \
+  --project="${GCP_PROJECT_ID}"
+
+gcloud run deploy coursecompass-api \
+  --image=us-central1-docker.pkg.dev/${GCP_PROJECT_ID}/coursecompass/coursecompass-api:TAG \
+  --region=us-central1 \
+  --project="${GCP_PROJECT_ID}"
+```
+
+Service URL pattern:
+
+- `https://coursecompass-api-XXXX.us-central1.run.app`
+
+Production frontend is typically pointed at that URL via `VITE_API_BASE_URL`
+at Vercel build time. CORS must include each browser origin that calls the API.
+
+## Known gaps
+
+- `build_schedule` (US-04) is still an advising handoff when no saved schedule
+  exists; there is no `.ics` export yet.
+- Syllabus embeddings are computed at query time; the pgvector column is not
+  filled for similarity search in SQL.
+- Production Vercel builds from `main` must include the chat-history client
+  changes for follow-ups like “this class” to work against the API.
 
 ## Git workflow
 

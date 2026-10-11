@@ -347,7 +347,7 @@ def print_counts(cur):
 
 
 def main():
-    if os.getenv("APP_ENV", "local") in ("prod", "production"):
+    if os.getenv("APP_ENV", "local").strip().lower() in ("prod", "production"):
         sys.exit("Refusing to run seed data against a production environment.")
     with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
         with conn.cursor() as cur:
