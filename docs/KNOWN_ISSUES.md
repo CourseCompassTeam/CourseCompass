@@ -9,7 +9,7 @@
 
 ## 1. Current bugs (from QA report)
 
-### P3
+### P2
 
 - **Limited chat history:** All chats only pass along the last 3-4 messages, but that is a feature that we limited to provide the performance needed for the system
 - **Follow-up question hiding summary:** A degree audit follow-up question shows the audit again while hiding the new AI summary that answers the question
