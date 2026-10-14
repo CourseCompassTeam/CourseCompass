@@ -59,7 +59,17 @@ The frontend assists in completing all features implemented by the backend/datab
   - Supplies the signed-in student's login token (from Clerk), so the backend knows who sent the question.
   - Requirements mapping: QA-03
 
-Screenshots: Auth service by Clerk / user signed in; Message presentation (class description feature shown)
+**Screenshots**
+
+Auth service by Clerk / user signed in:
+
+![Clerk sign-in modal](images/frontend-auth-clerk-signin.png)
+
+![Signed-in user menu via Clerk](images/frontend-auth-user-signed-in.png)
+
+Message presentation (class description feature shown):
+
+![Course description message presentation](images/frontend-message-presentation.png)
 
 ### Backend
 
@@ -79,7 +89,9 @@ The backend consists of an Orchestration layer and Tools/Repository layer. These
 
 Requirements mapping: US-01, US-02, US-03, US-05, US-06, US-07
 
-Evidence of queries being passed to the backend and being processed to generate a personalized response: *(see original PDF for screenshots)*
+Evidence of queries being passed to the backend and being processed to generate a personalized response:
+
+![Personalized chat response from backend tools](images/backend-query-personalized-response.png)
 
 ### Database
 
@@ -108,7 +120,9 @@ Evidence of queries being passed to the backend and being processed to generate 
   - Python script
   - Requirements mapping: Supports all of the above tables
 
-Evidence of live index catalog from the production database, confirming the schema is deployed, not just migration files on disk: *(see original PDF for screenshots)*
+Evidence of live index catalog from the production database, confirming the schema is deployed, not just migration files on disk:
+
+![Live production database index catalog](images/database-live-index-catalog.png)
 
 ---
 
@@ -116,7 +130,7 @@ Evidence of live index catalog from the production database, confirming the sche
 
 ### Final Architecture Diagram
 
-*(See original PDF for diagram)*
+![CourseCompass Level 2 system container diagram](images/architecture-diagram.png)
 
 ### Comparison to Week 3 Design
 
@@ -190,6 +204,14 @@ The main API endpoint contract is listed below:
 | **request** | FastAPI request (reads `app.state.llm_provider`) |
 | **Returns** | A response of type `audit`, `recommendation`, or `redirect`. Raises `ApiError: 501` if the LLM provider is not configured. `ApiError: 401` if a Bearer token is present but invalid. |
 | **Responses** | `200` Successful Response; `422` Validation Error |
+
+OpenAPI / Swagger contract excerpts:
+
+![API response schema excerpt](images/api-docs-endpoint-contract-1.png)
+
+![API request body schema excerpt](images/api-docs-endpoint-contract-2.png)
+
+![API validation error schema excerpt](images/api-docs-endpoint-contract-3.png)
 
 ---
 
