@@ -19,10 +19,8 @@ Built by Team Production Ready.
 | Architecture and design (Weeks 3-4) | [Architecture Document](docs/ARCHITECTURE_DOCUMENT.md), [Architecture Decision Records](docs/ARCHITECTURE_DECISION_RECORDS.md), [Detailed Design](docs/DETAILED_DESIGN.md) |
 | QA report and test results (Week 7) | [reports/CourseCompass-Quality-Assurance-Report.md](reports/CourseCompass-Quality-Assurance-Report.md) |
 | Implementation reports (Weeks 5-6) | [Progress Report](reports/CourseCompass-Implementation-Progress-Report.md), [Final Implementation Report](reports/CourseCompass-Final-Implementation-Report.md) |
+| Presentation materials | [Final slides](presentations/Production%20Ready%20Final%20Presentation.pptx), [presentation video](https://youtu.be/6wGrnPYD9B4) (see [presentations/](presentations/README.md)) |
 | Known issues and open questions | [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md), [docs/OPEN_QUESTIONS.md](docs/OPEN_QUESTIONS.md) |
-
-The final slides and demo video are submitted separately and are not stored
-in this repository.
 
 ## Stack
 
@@ -112,6 +110,7 @@ docs/               user, developer, API, and deployment guides; design docs
   images/           diagrams and screenshots used by the docs
 reports/            implementation and QA reports
   images/           screenshots used by the reports
+presentations/      final presentation slides and demo video link
 ```
 
 ## Configuration
