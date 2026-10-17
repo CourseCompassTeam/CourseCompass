@@ -7,6 +7,23 @@ services when a question is out of scope.
 
 Built by Team Production Ready.
 
+## Documentation package
+
+| What | Where |
+|------|-------|
+| Source code | This repository (see the [folder map](#folder-map)) |
+| User guide | [docs/USER_GUIDE.md](docs/USER_GUIDE.md) |
+| Developer guide | [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) |
+| API docs | [docs/API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md) |
+| Deployment guide | [docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md) |
+| Architecture and design (Weeks 3-4) | [Architecture Document](docs/ARCHITECTURE_DOCUMENT.md), [Architecture Decision Records](docs/ARCHITECTURE_DECISION_RECORDS.md), [Detailed Design](docs/DETAILED_DESIGN.md) |
+| QA report and test results (Week 7) | [reports/CourseCompass-Quality-Assurance-Report.md](reports/CourseCompass-Quality-Assurance-Report.md) |
+| Implementation reports (Weeks 5-6) | [Progress Report](reports/CourseCompass-Implementation-Progress-Report.md), [Final Implementation Report](reports/CourseCompass-Final-Implementation-Report.md) |
+| Known issues and open questions | [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md), [docs/OPEN_QUESTIONS.md](docs/OPEN_QUESTIONS.md) |
+
+The final slides and demo video are submitted separately and are not stored
+in this repository.
+
 ## Stack
 
 | Layer      | Technology                                           |
@@ -78,6 +95,7 @@ backend/
     ingestion/      data source ingestion interface (QA-04)
   tests/            unit tests
   tests/integration/  API integration tests (in-memory repos, scripted LLM)
+  tests/db/         database QA tests, seed unit tests, and benchmark
   Dockerfile        Cloud Run container image
 frontend/
   src/
@@ -90,7 +108,10 @@ frontend/
 migrations/         node-pg-migrate schema migrations
 seeds/              dev/test seed data (courses, transcripts, syllabus chunks)
 scripts/            gcloud auth, Cloud Run deploy, LLM smoke helpers
-docs/               open questions for the team
+docs/               user, developer, API, and deployment guides; design docs
+  images/           diagrams and screenshots used by the docs
+reports/            implementation and QA reports
+  images/           screenshots used by the reports
 ```
 
 ## Configuration
