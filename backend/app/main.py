@@ -14,10 +14,13 @@ import logging
 from app.api.errors import register_exception_handlers
 from app.api.v1 import admin_ingest
 from app.api.v1 import query
+from app.api.v1 import transcript
 from app.config import Settings
 from app.config import load_settings
 from app.orchestration.provider_factory import create_embedding_provider
 from app.orchestration.provider_factory import create_llm_provider
+from app.ingestion.transcript_store import TranscriptStore
+from app.repositories.connection import Database
 from app.repositories.factory import build_tool_dispatcher
 
 _LOG = logging.getLogger(__name__)
@@ -51,6 +54,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.state.llm_provider = None
     application.state.embedding_provider = None
     application.state.tool_dispatcher = None
+    application.state.transcript_store = None
     if settings.llm_provider:
         try:
             application.state.llm_provider = create_llm_provider(settings)
@@ -65,12 +69,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             _LOG.warning('Embedding provider not attached: %s', exc)
     if settings.database_url:
         try:
+            database = Database(settings.database_url)
             application.state.tool_dispatcher = build_tool_dispatcher(
                 settings.database_url,
                 embedding_provider=application.state.embedding_provider,
             )
+            application.state.transcript_store = TranscriptStore(database)
         except Exception as exc:
-            _LOG.warning('Tool dispatcher not attached: %s', exc)
+            _LOG.warning('Database stack not attached: %s', exc)
 
     application.add_middleware(
         CORSMiddleware,
@@ -82,6 +88,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     register_exception_handlers(application)
     application.include_router(query.router)
+    application.include_router(transcript.router)
     application.include_router(admin_ingest.router)
 
     @application.get('/health')
