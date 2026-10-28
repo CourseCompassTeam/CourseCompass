@@ -111,6 +111,22 @@ const SAMPLE_RESPONSES = {
   },
 };
 
+// Shaped like a POST /api/v1/transcript/upload response (fields the UI
+// doesn't use are left out).
+const SAMPLE_TRANSCRIPT_UPLOAD = {
+  status: 'success',
+  course_count: 4,
+  saved: [
+    { code: 'MSSE 601', status: 'completed', term: '082525-102425',
+      grade: 'A' },
+    { code: 'MSSE 603', status: 'completed', term: '082525-102425',
+      grade: 'A-' },
+    { code: 'MSSE 610', status: 'in_progress', term: '102725-122125',
+      grade: 'IP' },
+  ],
+  skipped: [{ code: 'MSSE 600', reason: 'not in course catalog' }],
+};
+
 // [sample, response type, pattern]. The first match wins.
 const INTENT_KEYWORDS = [
   ['syllabus', 'recommendation', /syllabus|weekly topics|week by week/i],
@@ -136,6 +152,25 @@ export class MockAPIClient {
    * @param {string} token Ignored.
    * @returns {Promise<object>} A response shaped like POST /api/v1/query.
    */
+  /**
+   * Returns a sample transcript upload result.
+   * Name the file "simulate error.pdf" to test the error state.
+   * @param {string} endpoint Ignored.
+   * @param {File} file The uploaded file.
+   * @param {string} token Ignored.
+   * @param {object} headers Ignored.
+   * @returns {Promise<object>} A response shaped like
+   *     POST /api/v1/transcript/upload.
+   */
+  async postFile(endpoint, file, token, headers = {}) {
+    await new Promise((resolve) => setTimeout(resolve, this.delayMs));
+
+    if (/simulate error/i.test(file?.name ?? '')) {
+      throw new ApiError(400, 'BAD_REQUEST', 'Failed to parse transcript PDF.');
+    }
+    return SAMPLE_TRANSCRIPT_UPLOAD;
+  }
+
   async post(endpoint, body, token) {
     await new Promise((resolve) => setTimeout(resolve, this.delayMs));
 

@@ -13,8 +13,10 @@ import {
 
 import AppShell from '../components/AppShell.jsx';
 import ChatContainer from '../components/ChatContainer.jsx';
+import TranscriptUpload from '../components/transcript/TranscriptUpload.jsx';
 import { ClerkAuthService } from '../services/authService.js';
 import { ChatService } from '../services/chatService.js';
+import { TranscriptService } from '../services/transcriptService.js';
 
 export default function ClerkRoot({ apiClient }) {
   return (
@@ -63,13 +65,19 @@ function SignInScreen() {
 
 function SignedInChat({ apiClient }) {
   const { getToken, userId } = useAuth();
-  const chatService = useMemo(
-    () => new ChatService(apiClient, new ClerkAuthService({ getToken, userId })),
-    [apiClient, getToken, userId],
-  );
+  const { chatService, transcriptService } = useMemo(() => {
+    const authService = new ClerkAuthService({ getToken, userId });
+    return {
+      chatService: new ChatService(apiClient, authService),
+      transcriptService: new TranscriptService(apiClient, authService),
+    };
+  }, [apiClient, getToken, userId]);
 
   return (
-    <AppShell userMenu={<UserButton />}>
+    <AppShell
+      actions={<TranscriptUpload transcriptService={transcriptService} />}
+      userMenu={<UserButton />}
+    >
       <ChatContainer chatService={chatService} />
     </AppShell>
   );
