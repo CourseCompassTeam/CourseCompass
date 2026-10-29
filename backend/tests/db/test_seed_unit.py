@@ -25,7 +25,8 @@ seed = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(seed)
 
 GUARDED_TABLES = ["programs", "requirements", "prerequisites", "transcript_entries",
-                  "advisor_contacts", "milestones", "course_offerings", "syllabus_chunks"]
+                  "advisor_contacts", "milestones", "course_offerings", "syllabus_chunks",
+		  "course_equivalencies"]
 
 
 class FakeCursor:
@@ -126,7 +127,8 @@ class TestSeedOnEmptyDatabase:
         assert all(sql.rstrip().endswith("NULL)") for sql in inserts)
 
     def test_courses_and_terms_are_upserts(self, cur):
-        for table, expected in (("courses", len(seed.COURSES)), ("terms", len(seed.TERMS))):
+        for table, expected in (("courses", len(seed.COURSES) + len(seed.LEGACY_COURSES)), 
+				("terms", len(seed.TERMS))):
             inserts = cur.inserts_into(table)
             assert len(inserts) == expected
             assert all("ON CONFLICT" in sql for sql in inserts)
@@ -229,3 +231,51 @@ class TestSeedDataConsistency:
     def test_two_test_students_with_distinct_ids(self):
         assert len(seed.STUDENTS) == 2
         assert len({s[0] for s in seed.STUDENTS}) == 2 and len({s[1] for s in seed.STUDENTS}) == 2
+
+# ------------------------------------------------ legacy courses (add) --
+
+class TestLegacyCourses:
+    @pytest.fixture()
+    def cur(self):
+        c = FakeCursor(rows_already_exist=False)
+        seed.seed(c)
+        return c
+
+    def test_legacy_courses_are_saved_inactive_with_no_description(self, cur):
+        legacy = [sql for sql in cur.inserts_into("courses") if "false" in sql]
+        assert len(legacy) == len(seed.LEGACY_COURSES)
+        assert all("NULL" in sql for sql in legacy)
+
+    def test_legacy_courses_get_no_requirement_row(self, cur):
+        # requirements are one per current course, so legacy courses add none
+        assert len(cur.inserts_into("requirements")) == len(seed.COURSES)
+
+    def test_inserts_every_equivalency(self, cur):
+        assert len(cur.inserts_into("course_equivalencies")) == len(seed.EQUIVALENCIES)
+
+    def test_print_counts_includes_equivalencies(self, capsys):
+        seed.print_counts(FakeCursor())
+        assert "course_equivalencies" in capsys.readouterr().out
+
+
+class TestLegacyDataConsistency:
+    LEGACY_CODES = [c[0] for c in seed.LEGACY_COURSES]
+
+    def test_legacy_codes_are_unique_and_not_current_courses(self):
+        assert len(self.LEGACY_CODES) == len(set(self.LEGACY_CODES))
+        assert not set(self.LEGACY_CODES) & set(CODES)
+
+    def test_legacy_courses_have_titles_and_positive_credits(self):
+        assert all(title.strip() and credits > 0 for _, title, credits in seed.LEGACY_COURSES)
+
+    def test_equivalencies_link_a_legacy_course_to_a_current_one(self):
+        for legacy, replaces in seed.EQUIVALENCIES:
+            assert legacy in self.LEGACY_CODES
+            assert replaces in CODES
+
+    def test_equivalencies_have_no_duplicates(self):
+        assert len(seed.EQUIVALENCIES) == len(set(seed.EQUIVALENCIES))
+
+    def test_each_legacy_course_replaces_exactly_one_course(self):
+        legacy = [l for l, _ in seed.EQUIVALENCIES]
+        assert sorted(legacy) == sorted(self.LEGACY_CODES)
