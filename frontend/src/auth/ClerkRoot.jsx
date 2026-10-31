@@ -13,7 +13,9 @@ import {
 
 import AppShell from '../components/AppShell.jsx';
 import ChatContainer from '../components/ChatContainer.jsx';
-import TranscriptUpload from '../components/transcript/TranscriptUpload.jsx';
+import TranscriptUploadProvider, {
+  TranscriptUploadButton,
+} from '../components/transcript/TranscriptUpload.jsx';
 import { ClerkAuthService } from '../services/authService.js';
 import { ChatService } from '../services/chatService.js';
 import { TranscriptService } from '../services/transcriptService.js';
@@ -74,11 +76,13 @@ function SignedInChat({ apiClient }) {
   }, [apiClient, getToken, userId]);
 
   return (
-    <AppShell
-      actions={<TranscriptUpload transcriptService={transcriptService} />}
-      userMenu={<UserButton />}
-    >
-      <ChatContainer chatService={chatService} />
-    </AppShell>
+    <TranscriptUploadProvider transcriptService={transcriptService}>
+      <AppShell
+        actions={<TranscriptUploadButton />}
+        userMenu={<UserButton />}
+      >
+        <ChatContainer chatService={chatService} />
+      </AppShell>
+    </TranscriptUploadProvider>
   );
 }

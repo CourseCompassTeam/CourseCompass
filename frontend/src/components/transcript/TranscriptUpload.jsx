@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { createContext, useContext, useId, useRef, useState } from 'react';
 
 import {
   courseCountLabel,
@@ -6,13 +6,43 @@ import {
   getUploadErrorHint,
 } from './transcriptText.js';
 
+// Opens the upload dialog. Null outside a TranscriptUploadProvider.
+const OpenUploadContext = createContext(null);
+
 /**
- * Header button that opens a dialog for uploading a transcript PDF. The
- * upload replaces every course the student has stored.
- * @param {{transcriptService:
- *     import('../../services/transcriptService.js').TranscriptService}} props
+ * Returns a function that opens the transcript upload dialog, or null when
+ * no provider is mounted (so callers can hide their upload buttons).
  */
-export default function TranscriptUpload({ transcriptService }) {
+export function useOpenTranscriptUpload() {
+  return useContext(OpenUploadContext);
+}
+
+/** Header button that opens the transcript upload dialog. */
+export function TranscriptUploadButton() {
+  const open = useOpenTranscriptUpload();
+  return (
+    <button
+      type="button"
+      className="button button--secondary"
+      onClick={open}
+      aria-label="Upload transcript"
+    >
+      Upload<span className="hide-narrow">&nbsp;transcript</span>
+    </button>
+  );
+}
+
+/**
+ * Owns the dialog for uploading a transcript PDF and lets any child open it.
+ * The upload replaces every course the student has stored.
+ * @param {{transcriptService:
+ *     import('../../services/transcriptService.js').TranscriptService,
+ *     children: React.ReactNode}} props
+ */
+export default function TranscriptUploadProvider({
+  transcriptService,
+  children,
+}) {
   const dialogRef = useRef(null);
   const inputRef = useRef(null);
   const titleId = useId();
@@ -60,15 +90,8 @@ export default function TranscriptUpload({ transcriptService }) {
   }
 
   return (
-    <>
-      <button
-        type="button"
-        className="button button--secondary"
-        onClick={open}
-        aria-label="Upload transcript"
-      >
-        Upload<span className="hide-narrow">&nbsp;transcript</span>
-      </button>
+    <OpenUploadContext.Provider value={open}>
+      {children}
       <dialog
         ref={dialogRef}
         className="dialog"
@@ -152,7 +175,7 @@ export default function TranscriptUpload({ transcriptService }) {
           </form>
         )}
       </dialog>
-    </>
+    </OpenUploadContext.Provider>
   );
 }
 

@@ -5,7 +5,9 @@ import { useMemo } from 'react';
 
 import AppShell from '../components/AppShell.jsx';
 import ChatContainer from '../components/ChatContainer.jsx';
-import TranscriptUpload from '../components/transcript/TranscriptUpload.jsx';
+import TranscriptUploadProvider, {
+  TranscriptUploadButton,
+} from '../components/transcript/TranscriptUpload.jsx';
 import { config } from '../config.js';
 import { DevAuthService } from '../services/authService.js';
 import { ChatService } from '../services/chatService.js';
@@ -21,11 +23,13 @@ export default function DevRoot({ apiClient }) {
   }, [apiClient]);
 
   return (
-    <AppShell
-      badge="Dev mode"
-      actions={<TranscriptUpload transcriptService={transcriptService} />}
-    >
-      <ChatContainer chatService={chatService} />
-    </AppShell>
+    <TranscriptUploadProvider transcriptService={transcriptService}>
+      <AppShell
+        badge="Dev mode"
+        actions={<TranscriptUploadButton />}
+      >
+        <ChatContainer chatService={chatService} />
+      </AppShell>
+    </TranscriptUploadProvider>
   );
 }
