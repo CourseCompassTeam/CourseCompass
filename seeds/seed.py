@@ -94,6 +94,22 @@ COURSE_OFFERINGS = {
     "MSSE 615": ["2026 FALL 8W2"],
 }
 
+# Courses from the old catalog, kept so transcripts that contain them can be
+# saved. They are inactive: never offered, recommended or scheduled, and they get
+# no requirement row. (code, title, credits)
+LEGACY_COURSES = [
+    ("MSSE 600", "Introduction to Software Engineering", 3),
+    ("MSSE 663", "Web Frameworks", 3),
+    ("MSSE 670", "Java Software Development", 3),
+]
+
+# (legacy code, code of the current course it replaced)
+EQUIVALENCIES = [
+    ("MSSE 600", "MSSE 601"),
+    ("MSSE 663", "MSES 602"),
+    ("MSSE 670", "MSCC 697"),
+]
+
 # (clerk_user_id, email, full_name, status)
 STUDENTS = [
     ("user_3K1pC0YksFOD8HW1dIiz4ITDt90", "nearly.done@example.edu", "Test Student Nearly Done", "active"),
@@ -230,6 +246,28 @@ def seed(cur):
         )
         course_ids[code] = cur.fetchone()[0]
 
+    legacy_ids = {}
+    for code, title, credits in LEGACY_COURSES:
+        cur.execute(
+            "INSERT INTO courses (code, title, description, credits, is_active) "
+            "VALUES (%s, %s, NULL, %s, false) "
+            "ON CONFLICT (code) DO UPDATE SET title = EXCLUDED.title, "
+            "credits = EXCLUDED.credits, is_active = false "
+            "RETURNING course_id",
+            (code, title, credits),
+        )
+        legacy_ids[code] = cur.fetchone()[0]
+
+    for legacy_code, replaces_code in EQUIVALENCIES:
+        insert_if_missing(
+            cur,
+            "SELECT 1 FROM course_equivalencies WHERE legacy_course_id = %(legacy)s "
+            "AND replaces_course_id = %(replaces)s",
+            "INSERT INTO course_equivalencies (legacy_course_id, replaces_course_id) "
+            "VALUES (%(legacy)s, %(replaces)s)",
+            {"legacy": legacy_ids[legacy_code], "replaces": course_ids[replaces_code]},
+        )
+
     for code, course_id in course_ids.items():
         insert_if_missing(
             cur,
@@ -341,7 +379,7 @@ def print_counts(cur):
     """Prints row counts so the run can be checked at a glance."""
     for table in ("programs", "courses", "requirements", "prerequisites", "students",
                   "transcript_entries", "advisor_contacts", "milestones", "course_offerings",
-		  "syllabus_chunks", "terms"):
+		  "syllabus_chunks", "terms", "course_equivalencies"):
         cur.execute(f"SELECT COUNT(*) FROM {table}")
         print(f"  {table}: {cur.fetchone()[0]}")
 
