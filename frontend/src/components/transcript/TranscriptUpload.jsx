@@ -234,7 +234,9 @@ function UploadResult({ result, onDone, onAgain }) {
           </ul>
           <p className="bubble__hint upload-result__note">
             Skipped courses weren't stored. They don't count toward your
-            progress in CourseCompass.
+            progress in CourseCompass, but they may still count toward your
+            degree, for example if one was approved as a substitute for a
+            required course. Check with your advisor.
           </p>
         </section>
       )}
