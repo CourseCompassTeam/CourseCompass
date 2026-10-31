@@ -30,3 +30,20 @@ describe('MockAPIClient.post', () => {
     ).rejects.toMatchObject({ status: 500 });
   });
 });
+
+describe('MockAPIClient.postFile', () => {
+  it('returns saved and skipped courses', async () => {
+    const response = await client.postFile(
+      '/api/v1/transcript/upload', new File(['%PDF'], 'transcript.pdf'), 'tok',
+    );
+    expect(response.saved.length).toBeGreaterThan(0);
+    expect(response.skipped.length).toBeGreaterThan(0);
+  });
+
+  it('simulates a parse error on request', async () => {
+    await expect(
+      client.postFile('/api/v1/transcript/upload',
+        new File([''], 'simulate error.pdf'), 'tok'),
+    ).rejects.toMatchObject({ status: 400, code: 'BAD_REQUEST' });
+  });
+});
