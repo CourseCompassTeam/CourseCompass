@@ -93,6 +93,12 @@ Example response (illustrative: the structure was observed in a live test; the v
 
 ---
 
+## 3a. Clerk user webhook
+
+`POST /api/v1/webhooks/clerk` is called by Clerk, not by the frontend. It verifies the Svix signature (`svix-id`, `svix-timestamp`, `svix-signature`) and handles `user.created` by inserting an active `students` row in the default program. Repeated deliveries do not create duplicates.
+
+Responses: `200` with `{"status": "created" | "exists" | "skipped" | "ignored"}`; `401` bad signature; `422` default program missing (Clerk retries); `501`/`503` not configured.
+
 ## 4. Error codes and meanings
 
 Errors raised by the app share one envelope, for example, a model rate limit:

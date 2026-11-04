@@ -248,3 +248,27 @@ class IIngestionLogRepository(abc.ABC):
         Returns:
             Ingestion log rows.
         """
+
+
+class IStudentRepository(abc.ABC):
+    """Interface for writing student rows."""
+
+    @abc.abstractmethod
+    def insert_student_if_absent(
+        self,
+        clerk_user_id: str,
+        email: str,
+        full_name: str,
+        program_id: str,
+    ) -> bool:
+        """Inserts an active student unless the Clerk id or email exists.
+
+        Args:
+            clerk_user_id: Clerk ``sub`` for the new user.
+            email: Primary email address.
+            full_name: Display name.
+            program_id: Program the student is enrolled in.
+
+        Returns:
+            True when a row was inserted, False when one already matched.
+        """
