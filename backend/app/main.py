@@ -13,6 +13,7 @@ import logging
 
 from app.api.errors import register_exception_handlers
 from app.api.v1 import admin_ingest
+from app.api.v1 import clerk_webhook
 from app.api.v1 import query
 from app.api.v1 import transcript
 from app.config import Settings
@@ -21,6 +22,11 @@ from app.orchestration.provider_factory import create_embedding_provider
 from app.orchestration.provider_factory import create_llm_provider
 from app.ingestion.transcript_store import TranscriptStore
 from app.repositories.connection import Database
+from app.repositories.postgres_audit import PostgresAuditRepository
+from app.repositories.postgres_student import PostgresStudentRepository
+from app.services.student_provisioning_service import (
+    StudentProvisioningService,
+)
 from app.repositories.factory import build_tool_dispatcher
 
 _LOG = logging.getLogger(__name__)
@@ -55,6 +61,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.state.embedding_provider = None
     application.state.tool_dispatcher = None
     application.state.transcript_store = None
+    application.state.student_provisioning_service = None
     if settings.llm_provider:
         try:
             application.state.llm_provider = create_llm_provider(settings)
@@ -75,6 +82,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 embedding_provider=application.state.embedding_provider,
             )
             application.state.transcript_store = TranscriptStore(database)
+            application.state.student_provisioning_service = (
+                StudentProvisioningService(
+                    PostgresStudentRepository(database),
+                    PostgresAuditRepository(database),
+                    settings.default_program_name,
+                )
+            )
         except Exception as exc:
             _LOG.warning('Database stack not attached: %s', exc)
 
@@ -89,6 +103,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     register_exception_handlers(application)
     application.include_router(query.router)
     application.include_router(transcript.router)
+    application.include_router(clerk_webhook.router)
     application.include_router(admin_ingest.router)
 
     @application.get('/health')

@@ -34,6 +34,8 @@ class Settings:
         gcp_project: GCP project used by Vertex AI.
         gcp_location: Vertex AI region.
         cors_origins: Comma-separated allowed CORS origins.
+        clerk_webhook_secret: Svix signing secret for Clerk webhooks.
+        default_program_name: Program name given to new students.
     """
 
     app_name: str
@@ -53,6 +55,8 @@ class Settings:
     gcp_project: str
     gcp_location: str
     cors_origins: tuple[str, ...]
+    clerk_webhook_secret: str = ''
+    default_program_name: str = ''
 
 
 def load_settings() -> Settings:
@@ -119,4 +123,9 @@ def load_settings() -> Settings:
         ),
         gcp_location=os.getenv('GCP_LOCATION', 'us-central1'),
         cors_origins=origins,
+        clerk_webhook_secret=os.getenv('CLERK_WEBHOOK_SECRET', ''),
+        default_program_name=os.getenv(
+            'DEFAULT_PROGRAM_NAME',
+            'Master of Science - Software Engineering',
+        ),
     )

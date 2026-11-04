@@ -74,6 +74,12 @@ For local work, create a `.env` file at the repository root (git-ignored; never 
 
 - Comma-separated browser origins allowed to call the API
 
+#### `CLERK_WEBHOOK_SECRET`, `DEFAULT_PROGRAM_NAME`
+
+- `CLERK_WEBHOOK_SECRET` is the signing secret (`whsec_...`) of the Clerk webhook endpoint. Without it, `POST /api/v1/webhooks/clerk` returns 503.
+- `DEFAULT_PROGRAM_NAME` is the program given to new students (defaults to `Master of Science - Software Engineering`). It must exist in `programs`, or the webhook returns 422 and Clerk retries.
+- In the Clerk dashboard, add an endpoint at `https://<cloud-run-url>/api/v1/webhooks/clerk` subscribed to `user.created`.
+
 #### `VITE_CLERK_PUBLISHABLE_KEY`, `VITE_API_BASE_URL`
 
 - Vercel

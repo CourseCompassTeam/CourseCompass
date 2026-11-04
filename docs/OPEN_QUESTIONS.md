@@ -20,7 +20,7 @@ purpose, so the team can decide together.
    API Gateway over JSON-RPC. Which one?
 8. ~~Schema gaps and typos in the Detailed Design~~ CLEARED. All items were fixed in the table migrations::
    - `courses` has no description column, but US-02 returns course descriptions.
-   - There's no link from a Clerk user to a `students` row.
+   - ~~There's no link from a Clerk user to a `students` row.~~ **Decided (SCRUM-42):** a Clerk `user.created` webhook creates the row.
    - `StudentMilestoneService` needs milestone data, but there's no milestones table.
    - `GET /admin/ingest/status/{job_id}` needs a table for ingestion jobs.
    - `advisor_contacts` doesn't cover career services contacts or booking URLs
