@@ -15,6 +15,7 @@ from app.api.errors import register_exception_handlers
 from app.api.v1 import admin_ingest
 from app.api.v1 import clerk_webhook
 from app.api.v1 import query
+from app.api.v1 import schedule
 from app.api.v1 import transcript
 from app.config import Settings
 from app.config import load_settings
@@ -24,7 +25,9 @@ from app.ingestion.transcript_store import TranscriptStore
 from app.services.substitution_service import SubstitutionService
 from app.repositories.connection import Database
 from app.repositories.postgres_audit import PostgresAuditRepository
+from app.repositories.postgres_schedule import PostgresScheduleRepository
 from app.repositories.postgres_student import PostgresStudentRepository
+from app.scheduling.service import ScheduleBuilderService
 from app.services.student_provisioning_service import (
     StudentProvisioningService,
 )
@@ -64,6 +67,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.state.transcript_store = None
     application.state.substitution_service = None
     application.state.student_provisioning_service = None
+    application.state.schedule_repository = None
+    application.state.schedule_service = None
     if settings.llm_provider:
         try:
             application.state.llm_provider = create_llm_provider(settings)
@@ -84,6 +89,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 embedding_provider=application.state.embedding_provider,
             )
             application.state.transcript_store = TranscriptStore(database)
+            schedule_repository = PostgresScheduleRepository(database)
+            application.state.schedule_repository = schedule_repository
+            application.state.schedule_service = ScheduleBuilderService(
+                database, schedule_repository
+            )
             application.state.substitution_service = SubstitutionService(
                 database
             )
@@ -108,6 +118,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     register_exception_handlers(application)
     application.include_router(query.router)
     application.include_router(transcript.router)
+    application.include_router(schedule.router)
     application.include_router(clerk_webhook.router)
     application.include_router(admin_ingest.router)
 
