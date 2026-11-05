@@ -47,3 +47,28 @@ describe('MockAPIClient.postFile', () => {
     ).rejects.toMatchObject({ status: 400, code: 'BAD_REQUEST' });
   });
 });
+
+describe('MockAPIClient schedule build', () => {
+  it('plans courses per term and lists the rest as unplaced', async () => {
+    const built = await client.post(
+      '/api/v1/schedule/build', { courses_per_term: 1 }, 'tok',
+    );
+
+    expect(built.schedule.terms.map((term) => term.items.length))
+      .toEqual([1, 1, 1]);
+    expect(built.unplaced.length).toBeGreaterThan(1);
+  });
+
+  it('includes a term without dates', async () => {
+    const built = await client.post('/api/v1/schedule/build', {}, 'tok');
+
+    expect(built.schedule.terms.some((term) => term.start_date === null))
+      .toBe(true);
+  });
+
+  it('rejects courses_per_term outside 1 to 6', async () => {
+    await expect(
+      client.post('/api/v1/schedule/build', { courses_per_term: 7 }, 'tok'),
+    ).rejects.toMatchObject({ status: 400, code: 'BAD_REQUEST' });
+  });
+});

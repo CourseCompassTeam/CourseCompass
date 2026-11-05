@@ -148,6 +148,68 @@ const MOCK_SUBSTITUTION_REVIEW = {
   substitutions: [],
 };
 
+// Sample schedule planner data, in the order the mock places courses.
+// Schedules aren't saved, so the build response has no schedule ids.
+// start_date and end_date aren't in the backend contract yet (requested
+// for calendar export). 2027 SUM 8W1 has no dates, to show a term being
+// left out of the calendar file.
+const MOCK_SCHEDULE_TERMS = [
+  ['2027 SPR 8W1', '2027-01-11', '2027-03-07'],
+  ['2027 SPR 8W2', '2027-03-08', '2027-05-02'],
+  ['2027 SUM 8W1', null, null],
+];
+const MOCK_REMAINING_COURSES = [
+  ['MSSE 613', 'Software Project Management'],
+  ['MSSE 635', 'Software Architecture and Design'],
+  ['MSSE 640', 'Software Quality and Test'],
+  ['MSSE 642', 'Software Assurance'],
+  ['MSSE 692', 'Software Engineering Practicum I'],
+  ['MSSE 696', 'Software Engineering Practicum II'],
+];
+const MOCK_UNOFFERED_COURSE = {
+  course_id: 'mock-course-mscc-697',
+  code: 'MSCC 697',
+  title: 'Capstone',
+  reason: 'not offered in any available term',
+};
+
+/**
+ * Plans the sample courses, coursesPerTerm at a time.
+ * @returns {{schedule: ?object, unplaced: object[]}} Shaped like the
+ *     POST /api/v1/schedule/build response.
+ */
+function planMockSchedule(coursesPerTerm) {
+  const terms = MOCK_SCHEDULE_TERMS.map(([termName, start, end], index) => {
+    const courses = MOCK_REMAINING_COURSES.slice(
+      index * coursesPerTerm, (index + 1) * coursesPerTerm,
+    );
+    return {
+      term_name: termName,
+      term_order: index + 1,
+      start_date: start,
+      end_date: end,
+      items: courses.map(([code, title]) => ({
+        course_id: `mock-course-${code.replace(' ', '-').toLowerCase()}`,
+        code,
+        title,
+        credits: 3,
+      })),
+    };
+  }).filter((term) => term.items.length > 0);
+
+  const placedCount = MOCK_SCHEDULE_TERMS.length * coursesPerTerm;
+  const unplaced = [
+    ...MOCK_REMAINING_COURSES.slice(placedCount).map(([code, title]) => ({
+      course_id: `mock-course-${code.replace(' ', '-').toLowerCase()}`,
+      code,
+      title,
+      reason: 'no available term left after its prerequisites',
+    })),
+    MOCK_UNOFFERED_COURSE,
+  ];
+  return { schedule: { terms }, unplaced };
+}
+
 export class MockAPIClient {
   /**
    * @param {{delayMs?: number}} options Simulated network delay.
@@ -199,6 +261,9 @@ export class MockAPIClient {
     if (endpoint.endsWith('/transcript/substitutions')) {
       return MOCK_SUBSTITUTION_REVIEW;
     }
+    if (endpoint === '/api/v1/schedule/build') {
+      return this.#buildSchedule(body);
+    }
 
     const query = body?.query ?? '';
     if (/simulate error/i.test(query)) {
@@ -213,5 +278,15 @@ export class MockAPIClient {
       content: SAMPLE_RESPONSES[sample],
       timestamp: new Date().toISOString(),
     };
+  }
+
+  #buildSchedule(body) {
+    const coursesPerTerm = body?.courses_per_term ?? 2;
+    if (!Number.isInteger(coursesPerTerm) || coursesPerTerm < 1
+        || coursesPerTerm > 6) {
+      throw new ApiError(400, 'BAD_REQUEST',
+        'courses_per_term must be a whole number from 1 to 6.');
+    }
+    return { status: 'success', ...planMockSchedule(coursesPerTerm) };
   }
 }
