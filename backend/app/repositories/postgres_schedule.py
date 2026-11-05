@@ -96,7 +96,7 @@ class PostgresScheduleRepository(IScheduleRepository):
         # outside it would open an implicit transaction, and the block below
         # would then become a savepoint that is never committed.
         with self._database.connect() as connection, connection.transaction():
-            resolved = _find_student_id(connection, student_id)
+            resolved = find_student_id(connection, student_id)
             if resolved is None:
                 return None
             new_id = schedule_repository.replace_draft(
@@ -120,7 +120,7 @@ class PostgresScheduleRepository(IScheduleRepository):
         except ValueError:
             return False
         with self._database.connect() as connection, connection.transaction():
-            resolved = _find_student_id(connection, student_id)
+            resolved = find_student_id(connection, student_id)
             if resolved is None:
                 return False
             return schedule_repository.mark_exported(
@@ -128,7 +128,7 @@ class PostgresScheduleRepository(IScheduleRepository):
             )
 
 
-def _find_student_id(connection, student_id: str):
+def find_student_id(connection, student_id: str):
     """Resolves a UUID or clerk user id to the student's UUID, or None."""
     if not student_id:
         return None
