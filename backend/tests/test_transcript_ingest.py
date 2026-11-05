@@ -127,6 +127,17 @@ PARSED_TWO_COURSES = {
 }
 
 
+def test_pdf_upload_rejects_oversized_pdf():
+    client = TestClient(create_app(_settings()))
+    too_big = b'%PDF-' + (b'x' * (10 * 1024 * 1024))
+    response = client.post(
+        '/api/v1/transcript/upload',
+        files={'file': ('transcript.pdf', too_big, 'application/pdf')},
+    )
+    assert response.status_code == 400
+    assert response.json()['error']['code'] == 'BAD_REQUEST'
+
+
 def test_pdf_upload_rejects_non_pdf():
     client = TestClient(create_app(_settings()))
     response = client.post(

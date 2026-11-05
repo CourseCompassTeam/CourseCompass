@@ -7,6 +7,8 @@
 import { ApiError } from './apiClient.js';
 
 export const TRANSCRIPT_UPLOAD_ENDPOINT = '/api/v1/transcript/upload';
+export const SUBSTITUTION_REVIEW_ENDPOINT = '/api/v1/transcript/review';
+export const SUBSTITUTIONS_ENDPOINT = '/api/v1/transcript/substitutions';
 
 export class TranscriptService {
   /**
@@ -37,11 +39,7 @@ export class TranscriptService {
         'Only PDF transcripts are supported.');
     }
 
-    const token = await this._authService.getSessionToken();
-    // Local backends only; production ignores this header.
-    const devStudentId = this._authService.getDevStudentId();
-    const headers = devStudentId ? { 'X-Dev-Student-Id': devStudentId } : {};
-
+    const { token, headers } = await this.#auth();
     const raw = await this._apiClient.postFile(
       TRANSCRIPT_UPLOAD_ENDPOINT,
       file,
@@ -52,6 +50,87 @@ export class TranscriptService {
       saved: raw?.saved ?? [],
       skipped: raw?.skipped ?? [],
       courseCount: raw?.course_count ?? 0,
+      clearedSubstitutions: raw?.clearedSubstitutions ?? [],
     };
   }
+
+  /**
+   * Loads what the substitution matcher needs for the signed-in student.
+   * @returns {Promise<SubstitutionReview>}
+   * @throws {ApiError} If the request fails.
+   */
+  async getSubstitutionReview() {
+    const { token, headers } = await this.#auth();
+    const raw = await this._apiClient.get(
+      SUBSTITUTION_REVIEW_ENDPOINT,
+      token,
+      headers,
+    );
+    return normalizeReview(raw);
+  }
+
+  /**
+   * Declares or replaces the substitute for one required course.
+   * @param {string} requirementCode Required course, e.g. 'MSSE 635'.
+   * @param {string} substituteCode Course the student took instead.
+   * @returns {Promise<SubstitutionReview>} The updated review.
+   * @throws {ApiError} If the course cannot be declared.
+   */
+  async declareSubstitution(requirementCode, substituteCode) {
+    const { token, headers } = await this.#auth();
+    const raw = await this._apiClient.post(
+      SUBSTITUTIONS_ENDPOINT,
+      { requirementCode, substituteCode },
+      token,
+      headers,
+    );
+    return normalizeReview(raw);
+  }
+
+  /**
+   * Removes one of the student's declared substitutions.
+   * @param {string} substitutionId The declaration to remove.
+   * @returns {Promise<SubstitutionReview>} The updated review.
+   * @throws {ApiError} If the declaration is not found.
+   */
+  async removeSubstitution(substitutionId) {
+    const { token, headers } = await this.#auth();
+    const raw = await this._apiClient.delete(
+      `${SUBSTITUTIONS_ENDPOINT}/${encodeURIComponent(substitutionId)}`,
+      token,
+      headers,
+    );
+    return normalizeReview(raw);
+  }
+
+  async #auth() {
+    const token = await this._authService.getSessionToken();
+    // Local backends only; production ignores this header.
+    const devStudentId = this._authService.getDevStudentId();
+    const headers = devStudentId ? { 'X-Dev-Student-Id': devStudentId } : {};
+    return { token, headers };
+  }
+}
+
+/**
+ * @typedef {object} SubstitutionReview
+ * @property {Array<{code: string, title: string, credits: number}>}
+ *     requirements Required courses not yet directly completed.
+ * @property {Array<{code: string, title: string, credits: number,
+ *     status: string}>} courses Transcript courses that are not required.
+ * @property {Array<{substitutionId: string, requirementCode: string,
+ *     substituteCode: string, substituteTitle: string, counted: boolean}>}
+ *     substitutions The student's declared substitutions.
+ */
+
+/**
+ * @param {object} raw The backend review payload.
+ * @returns {SubstitutionReview}
+ */
+export function normalizeReview(raw) {
+  return {
+    requirements: raw?.requirements ?? [],
+    courses: raw?.courses ?? [],
+    substitutions: raw?.substitutions ?? [],
+  };
 }

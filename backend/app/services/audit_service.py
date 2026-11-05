@@ -51,6 +51,38 @@ def _with_follow_on(course: str, prerequisites: list[str]) -> list[str]:
     return required
 
 
+def _non_required_transcript_courses(
+    completed: list[dict],
+    in_progress: list[dict],
+    required_codes: set[str],
+) -> list[dict]:
+    """Lists transcript courses that are not themselves required.
+
+    These are the candidates a student can declare as a substitute.
+
+    Args:
+        completed: Completed transcript rows.
+        in_progress: In-progress transcript rows.
+        required_codes: Codes of every required course in the program.
+
+    Returns:
+        One dict per course code, completed rows first.
+    """
+    courses: dict[str, dict] = {}
+    for rows, status in ((completed, 'completed'), (in_progress, 'in_progress')):
+        for row in rows:
+            code = row.get('code')
+            if not code or code in required_codes or code in courses:
+                continue
+            courses[code] = {
+                'code': code,
+                'title': row.get('title') or '',
+                'credits': row.get('credits'),
+                'status': status,
+            }
+    return list(courses.values())
+
+
 def _requirement_met(
     course: str,
     requirement: str,
@@ -166,20 +198,72 @@ class AuditService:
         completed_codes = {
             row.get('code') for row in completed if row.get('code')
         }
+        in_progress = self._in_progress_courses(student_id, student)
         in_progress_codes = {
-            row.get('code')
-            for row in self._in_progress_courses(student_id, student)
-            if row.get('code')
+            row.get('code') for row in in_progress if row.get('code')
         }
         prerequisites = self._prerequisite_rules(
             [course['code'] for course in required_courses]
         )
         for course in required_courses:
             course['prerequisites'] = prerequisites.get(course['code'], [])
+        substitutions = (
+            self._audit.get_substitutions(student_id)
+            if student is not None else []
+        )
+        required_codes = {course['code'] for course in required_courses}
+        taken_codes = completed_codes | in_progress_codes
+        substitute_for: dict[str, str] = {}
+        substitution_rows = []
+        for row in substitutions:
+            requirement = row['requirement_code']
+            # A declared substitute counts only for a required course the
+            # student has not completed, and only once the substitute is
+            # completed or in progress on the transcript.
+            if requirement not in required_codes:
+                reason = 'not_required'
+            elif requirement in completed_codes:
+                reason = 'already_completed'
+            elif row['substitute_code'] not in taken_codes:
+                reason = 'substitute_not_taken'
+            else:
+                reason = 'counted'
+            counted = reason == 'counted'
+            if counted:
+                substitute_for[requirement] = row['substitute_code']
+            substitution_rows.append({
+                'substitutionId': str(row['substitution_id']),
+                'requirementCode': requirement,
+                'substituteCode': row['substitute_code'],
+                'substituteTitle': row.get('substitute_title') or '',
+                'substituteCredits': row.get('substitute_credits'),
+                'counted': counted,
+                'reason': reason,
+            })
+        requirement_matches = []
+        for course in required_courses:
+            code = course['code']
+            if code in completed_codes:
+                match = {'status': 'direct', 'satisfiedBy': code}
+            elif code in substitute_for:
+                match = {
+                    'status': 'substitute',
+                    'satisfiedBy': substitute_for[code],
+                }
+            else:
+                match = {'status': 'missing', 'satisfiedBy': None}
+            requirement_matches.append({'code': code, **match})
+        matched_codes = {
+            match['code'] for match in requirement_matches
+            if match['status'] != 'missing'
+        }
         missing = [
             course for course in required_courses
-            if course['code'] not in completed_codes
+            if course['code'] not in matched_codes
         ]
+        transcript_courses = _non_required_transcript_courses(
+            completed, in_progress, required_codes
+        )
         credits_completed = sum(
             int(row.get('credits') or 0) for row in completed
         )
@@ -230,6 +314,9 @@ class AuditService:
             'requirementsMet': len(missing) == 0 and credits_remaining == 0,
             'missingCourses': [course['code'] for course in missing],
             'requiredCourses': required_courses,
+            'requirementMatches': requirement_matches,
+            'substitutions': substitution_rows,
+            'transcriptCourses': transcript_courses,
             'prerequisites': [
                 {'course': code, 'requires': requires}
                 for code, requires in prerequisites.items()

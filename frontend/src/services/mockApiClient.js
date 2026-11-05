@@ -136,6 +136,18 @@ const INTENT_KEYWORDS = [
     /recommend|interest|elective|suggest|next term/i],
 ];
 
+// Sample matcher data for mock mode. Codes match the seed catalog.
+const MOCK_SUBSTITUTION_REVIEW = {
+  requirements: [
+    { code: 'MSSE 635', title: 'Software Architecture and Design', credits: 3 },
+    { code: 'MSSE 696', title: 'Software Engineering Practicum II', credits: 3 },
+  ],
+  courses: [
+    { code: 'MSSE 610', title: 'Sample transcript course', credits: 3, status: 'completed' },
+  ],
+  substitutions: [],
+};
+
 export class MockAPIClient {
   /**
    * @param {{delayMs?: number}} options Simulated network delay.
@@ -171,8 +183,22 @@ export class MockAPIClient {
     return SAMPLE_TRANSCRIPT_UPLOAD;
   }
 
+  async get(endpoint) {
+    await new Promise((resolve) => setTimeout(resolve, this.delayMs));
+    return MOCK_SUBSTITUTION_REVIEW;
+  }
+
+  async delete(endpoint) {
+    await new Promise((resolve) => setTimeout(resolve, this.delayMs));
+    return MOCK_SUBSTITUTION_REVIEW;
+  }
+
   async post(endpoint, body, token) {
     await new Promise((resolve) => setTimeout(resolve, this.delayMs));
+
+    if (endpoint.endsWith('/transcript/substitutions')) {
+      return MOCK_SUBSTITUTION_REVIEW;
+    }
 
     const query = body?.query ?? '';
     if (/simulate error/i.test(query)) {

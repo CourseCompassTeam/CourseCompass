@@ -191,3 +191,29 @@ class PostgresAuditRepository(IStudentAuditRepository):
         with self._database.connect() as connection:
             rows = connection.execute(sql, (program_id,)).fetchall()
         return [serialize_row(row) for row in rows]
+
+    def get_substitutions(self, student_id: str) -> list[dict]:
+        """Gets a student's declared substitutions.
+
+        Args:
+            student_id: The student to look up.
+
+        Returns:
+            One row per declared substitution, with both course codes.
+        """
+        student = self.get_student(student_id)
+        if student is None:
+            return []
+        sql = """
+            SELECT s.substitution_id, rc.code AS requirement_code,
+                   sc.code AS substitute_code, sc.title AS substitute_title,
+                   sc.credits AS substitute_credits, s.source
+            FROM student_substitutions s
+            JOIN courses rc ON rc.course_id = s.requirement_course_id
+            JOIN courses sc ON sc.course_id = s.substitute_course_id
+            WHERE s.student_id = %s
+            ORDER BY rc.code
+        """
+        with self._database.connect() as connection:
+            rows = connection.execute(sql, (student['student_id'],)).fetchall()
+        return [serialize_row(row) for row in rows]
