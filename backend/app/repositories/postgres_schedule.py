@@ -27,7 +27,9 @@ class PostgresScheduleRepository(IScheduleRepository):
             student_id: UUID or clerk user id.
 
         Returns:
-            Schedule rows with nested terms and items when present.
+            Schedule rows with nested terms and items when present. Each term
+            carries ``start_date`` and ``end_date`` (``YYYY-MM-DD``), or None
+            when no term in ``terms`` has that name.
         """
         if not student_id:
             return []
@@ -40,10 +42,12 @@ class PostgresScheduleRepository(IScheduleRepository):
             ORDER BY s.created_at
         """
         term_sql = """
-            SELECT schedule_term_id, schedule_id, term_name, term_order
-            FROM schedule_terms
-            WHERE schedule_id = %s
-            ORDER BY term_order, term_name
+            SELECT st.schedule_term_id, st.schedule_id, st.term_name,
+                   st.term_order, t.start_date, t.end_date
+            FROM schedule_terms st
+            LEFT JOIN terms t ON t.term_name = st.term_name
+            WHERE st.schedule_id = %s
+            ORDER BY st.term_order, st.term_name
         """
         item_sql = """
             SELECT i.schedule_item_id, i.schedule_term_id, i.course_id,

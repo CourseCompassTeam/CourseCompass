@@ -386,6 +386,21 @@ class TestRepositoryWrites:
         assert [t["term_name"] for t in terms] == ["Fall", "Spring"]
         assert str(terms[0]["items"][0]["course_id"]) == str(a)
 
+    def test_terms_carry_their_start_and_end_dates(self, dict_conn):
+        w = make_world(dict_conn)
+        a, b, _ = w["courses"]
+        with dict_conn.cursor(row_factory=tuple_row) as cur:
+            cur.execute("SELECT term_name FROM terms WHERE term_id = %s", (w["terms"][0],))
+            real_term_name = cur.fetchone()[0]
+        store = PostgresScheduleRepository(SameConnection(dict_conn))
+        store.replace_draft(
+            str(w["student"]), [(real_term_name, [a]), ("Not a real term", [b])]
+        )
+        terms = store.get_schedules(str(w["student"]))[0]["terms"]
+        assert terms[0]["start_date"] == "2099-01-01"
+        assert terms[0]["end_date"] == "2099-01-28"
+        assert terms[1]["start_date"] is None and terms[1]["end_date"] is None
+
     def test_the_student_can_be_found_by_clerk_id(self, dict_conn):
         w = make_world(dict_conn)
         with dict_conn.cursor(row_factory=tuple_row) as cur:

@@ -115,6 +115,13 @@ def test_builds_and_saves_a_draft_found_by_clerk_id(conn, service):
     assert draft_count(conn, w["student"]) == 1
 
 
+def test_built_terms_include_start_and_end_dates(conn, service):
+    w = make_world(conn, courses=1)
+    offer(conn, w["courses"][0], w["terms"][0])
+    term = service.build_draft(str(w["student"]))["schedule"]["terms"][0]
+    assert term["start_date"] == "2099-01-01" and term["end_date"] == "2099-01-28"
+
+
 def test_a_second_build_replaces_the_first_draft(conn, service):
     w = make_world(conn, courses=1)
     offer(conn, w["courses"][0], w["terms"][0])
