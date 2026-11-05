@@ -1102,37 +1102,16 @@ p {
 }
 
 /* Declared substitutions in the degree audit. */
-.audit-subs__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+.audit-subs .bubble__hint {
+  margin-top: 0.35rem;
 }
 
-.audit-sub {
-  padding: 0.6rem 0.8rem;
-  border: 1px solid var(--color-border);
-  border-left: 4px solid var(--color-accent);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-muted);
-}
-
-.audit-sub--counted {
-  border-left-color: var(--color-success);
-}
-
-.audit-sub__line {
-  margin: 0;
-}
-
-.audit-sub__status {
-  margin: 0.2rem 0 0;
+.audit-sub__note {
+  display: block;
   color: var(--color-text-muted);
-  font-size: 0.9rem;
+  font-size: 0.8rem;
 }
 
-.audit-sub--counted .audit-sub__status {
+.audit-sub__counted {
   color: var(--color-success);
 }

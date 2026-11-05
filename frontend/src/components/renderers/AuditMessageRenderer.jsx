@@ -142,21 +142,21 @@ export default function AuditMessageRenderer({ message }) {
         {(message.content.substitutions || []).length > 0 && (
           <section className="audit-subs">
             <h3 className="bubble__heading">Substitutions you declared</h3>
-            <ul className="audit-subs__list">
+            <ul className="course-rows">
               {message.content.substitutions.map((row) => {
                 const item = summarizeSubstitution(row);
                 return (
-                  <li
-                    key={row.substitutionId}
-                    className={`audit-sub${item.counted ? ' audit-sub--counted' : ''}`}
-                  >
-                    <p className="audit-sub__line">
-                      <strong>{item.substitute}</strong> substitutes for{' '}
-                      <strong>{item.requirement}</strong>
-                    </p>
-                    <p className="audit-sub__status">
-                      {item.counted ? '✓ Counted toward your degree' : item.note}
-                    </p>
+                  <li key={row.substitutionId} className="course-row">
+                    <span className="course-row__code">{item.substitute}</span>
+                    <span className="course-row__title">
+                      substitutes for {item.requirement}
+                      {!item.counted && item.note && (
+                        <span className="audit-sub__note">{item.note}</span>
+                      )}
+                    </span>
+                    <span className={`course-row__credits${item.counted ? ' audit-sub__counted' : ''}`}>
+                      {item.counted ? '✓ Counted' : 'Not counted'}
+                    </span>
                   </li>
                 );
               })}
