@@ -1,10 +1,13 @@
 import { useState } from 'react';
 
-import { useOpenTranscriptUpload } from '../transcript/TranscriptUpload.jsx';
+import {
+  useOpenSubstitutionMatcher,
+  useOpenTranscriptUpload,
+} from '../transcript/TranscriptUpload.jsx';
 import FormattedText from './FormattedText.jsx';
 import MessageBubble from './MessageBubble.jsx';
 import MilestoneChecklist from './MilestoneChecklist.jsx';
-import { summarizeAudit } from './auditSummary.js';
+import { summarizeAudit, summarizeSubstitution } from './auditSummary.js';
 
 // Longer course lists start collapsed so the bubble stays easy to scan.
 const COLLAPSED_COURSE_COUNT = 5;
@@ -30,6 +33,7 @@ export default function AuditMessageRenderer({ message }) {
   const audit = summarizeAudit(message.content);
   const [showAll, setShowAll] = useState(false);
   const openUpload = useOpenTranscriptUpload();
+  const openMatcher = useOpenSubstitutionMatcher();
   const hasNumbers = audit.completed != null || audit.remaining != null ||
     audit.missing.length > 0 || audit.met;
 
@@ -121,6 +125,46 @@ export default function AuditMessageRenderer({ message }) {
                 {showAll ? 'Show fewer' : `Show all ${audit.missing.length} courses`}
               </button>
             )}
+            {openMatcher && (
+              <div className="audit__actions">
+                <button
+                  type="button"
+                  className="button button--secondary"
+                  onClick={openMatcher}
+                >
+                  Match transcript courses
+                </button>
+              </div>
+            )}
+          </section>
+        )}
+
+        {(message.content.substitutions || []).length > 0 && (
+          <section className="audit-subs">
+            <h3 className="bubble__heading">Substitutions you declared</h3>
+            <ul className="course-rows">
+              {message.content.substitutions.map((row) => {
+                const item = summarizeSubstitution(row);
+                return (
+                  <li key={row.substitutionId} className="course-row">
+                    <span className="course-row__code">{item.substitute}</span>
+                    <span className="course-row__title">
+                      substitutes for {item.requirement}
+                      {!item.counted && item.note && (
+                        <span className="audit-sub__note">{item.note}</span>
+                      )}
+                    </span>
+                    <span className={`course-row__credits${item.counted ? ' audit-sub__counted' : ''}`}>
+                      {item.counted ? '✓ Counted' : 'Not counted'}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="bubble__hint">
+              Substitutions are your own choices. Verify them with your
+              advisor before relying on them for graduation.
+            </p>
           </section>
         )}
 

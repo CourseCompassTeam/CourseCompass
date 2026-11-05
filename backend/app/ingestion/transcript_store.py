@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from app.api.errors import BAD_REQUEST
 from app.api.errors import NOT_FOUND
 from app.api.errors import ApiError
 from app.repositories.connection import Database
@@ -75,15 +76,22 @@ class TranscriptStore:
     ) -> dict[str, Any]:
         """Deletes a student's transcript rows and inserts parsed courses.
 
+        Retakes collapse to one row per course, keeping a completed row over
+        an in-progress one. Declared substitutions that no longer hold after
+        the rewrite are deleted in the same transaction and returned as
+        ``cleared``.
+
         Args:
             clerk_user_id: Clerk ``sub`` / ``students.clerk_user_id``.
             courses: Parsed PDF course dicts (code, grade, dates).
 
         Returns:
-            Student identity plus ``saved`` and ``skipped`` course lists.
+            Student identity, ``saved`` and ``skipped`` course lists, and
+            ``cleared`` substitutions.
 
         Raises:
-            ApiError: 404 if no student row matches the Clerk id.
+            ApiError: 404 if no student row matches the Clerk id. 400 if no
+                parsed row can be stored; the existing transcript is kept.
         """
         student = self._audit.get_student(clerk_user_id)
         if student is None:
@@ -98,9 +106,8 @@ class TranscriptStore:
         catalog = self._courses_by_code(
             [str(row.get('code') or '') for row in courses]
         )
-        saved: list[dict[str, Any]] = []
         skipped: list[dict[str, str]] = []
-        inserts: list[tuple[str, str, str, str]] = []
+        chosen: dict[str, dict[str, Any]] = {}
 
         for row in courses:
             code = str(row.get('code') or '').strip()
@@ -119,47 +126,112 @@ class TranscriptStore:
                     'reason': 'not in course catalog',
                 })
                 continue
-            term = term_label(str(row.get('dates') or ''))
-            inserts.append(
-                (student['student_id'], course['course_id'], term, status)
-            )
-            saved.append({
+            entry = {
+                'course_id': course['course_id'],
                 'code': course['code'],
                 'status': status,
-                'term': term,
+                'term': term_label(str(row.get('dates') or '')),
                 'grade': grade,
-            })
+            }
+            current = chosen.get(course['course_id'])
+            if current is None or (
+                current['status'] != 'completed'
+                and status == 'completed'
+            ):
+                chosen[course['course_id']] = entry
 
+        if not chosen:
+            status, code = BAD_REQUEST
+            raise ApiError(
+                status,
+                code,
+                'None of the parsed courses are in the catalog; existing '
+                'transcript was not changed.',
+            )
+
+        saved = list(chosen.values())
+        completed_ids = [
+            entry['course_id'] for entry in saved
+            if entry['status'] == 'completed'
+        ]
         with self._database.connect() as connection:
+            stale = connection.execute(
+                """
+                SELECT s.substitution_id,
+                       rc.code AS requirement_code,
+                       sc.code AS substitute_code
+                FROM student_substitutions s
+                JOIN courses rc ON rc.course_id = s.requirement_course_id
+                JOIN courses sc ON sc.course_id = s.substitute_course_id
+                WHERE s.student_id = %s
+                  AND (
+                    s.substitute_course_id <> ALL(%s::uuid[])
+                    OR s.requirement_course_id = ANY(%s::uuid[])
+                  )
+                """,
+                (
+                    student['student_id'],
+                    [entry['course_id'] for entry in saved],
+                    completed_ids,
+                ),
+            ).fetchall()
+            if stale:
+                connection.execute(
+                    'DELETE FROM student_substitutions '
+                    'WHERE substitution_id = ANY(%s::uuid[])',
+                    ([row['substitution_id'] for row in stale],),
+                )
             connection.execute(
                 'DELETE FROM transcript_entries WHERE student_id = %s',
                 (student['student_id'],),
             )
-            for student_id, course_id, term, status in inserts:
+            for entry in saved:
                 connection.execute(
                     'INSERT INTO transcript_entries '
                     '(student_id, course_id, term, status) '
                     'VALUES (%s, %s, %s, %s)',
-                    (student_id, course_id, term, status),
+                    (
+                        student['student_id'],
+                        entry['course_id'],
+                        entry['term'],
+                        entry['status'],
+                    ),
                 )
             connection.commit()
 
+        cleared = [
+            {
+                'requirementCode': row['requirement_code'],
+                'substituteCode': row['substitute_code'],
+            }
+            for row in stale
+        ]
         _LOG.info(
-            'transcript replaced clerk=%s saved=%s skipped=%s',
+            'transcript replaced clerk=%s saved=%s skipped=%s cleared=%s',
             clerk_user_id,
             len(saved),
             len(skipped),
+            len(cleared),
         )
         return {
             'student_id': student['student_id'],
             'clerk_user_id': student.get('clerk_user_id') or clerk_user_id,
             'email': student.get('email'),
-            'saved': saved,
+            'saved': [
+                {
+                    'code': entry['code'],
+                    'status': entry['status'],
+                    'term': entry['term'],
+                    'grade': entry['grade'],
+                }
+                for entry in saved
+            ],
             'skipped': skipped,
+            'cleared': cleared,
         }
 
     def _courses_by_code(self, codes: list[str]) -> dict[str, dict]:
-        """Loads catalog rows keyed by normalized code.
+        """Loads catalog rows keyed by normalized code, active or not.
 
         Args:
             codes: Parsed transcript codes.

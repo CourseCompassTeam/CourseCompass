@@ -69,6 +69,7 @@ class _FakeStore:
             'email': student['email'],
             'saved': saved,
             'skipped': skipped,
+            'cleared': [],
         }
 
 

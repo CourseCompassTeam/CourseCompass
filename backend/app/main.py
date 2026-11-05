@@ -22,6 +22,7 @@ from app.config import load_settings
 from app.orchestration.provider_factory import create_embedding_provider
 from app.orchestration.provider_factory import create_llm_provider
 from app.ingestion.transcript_store import TranscriptStore
+from app.services.substitution_service import SubstitutionService
 from app.repositories.connection import Database
 from app.repositories.postgres_audit import PostgresAuditRepository
 from app.repositories.postgres_schedule import PostgresScheduleRepository
@@ -64,6 +65,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.state.embedding_provider = None
     application.state.tool_dispatcher = None
     application.state.transcript_store = None
+    application.state.substitution_service = None
     application.state.student_provisioning_service = None
     application.state.schedule_repository = None
     application.state.schedule_service = None
@@ -91,6 +93,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             application.state.schedule_repository = schedule_repository
             application.state.schedule_service = ScheduleBuilderService(
                 database, schedule_repository
+            )
+            application.state.substitution_service = SubstitutionService(
+                database
             )
             application.state.student_provisioning_service = (
                 StudentProvisioningService(
