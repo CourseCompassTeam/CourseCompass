@@ -13,11 +13,13 @@ import {
 
 import AppShell from '../components/AppShell.jsx';
 import ChatContainer from '../components/ChatContainer.jsx';
+import { ScheduleButton } from '../components/schedule/ScheduleDialog.jsx';
 import TranscriptUploadProvider, {
   TranscriptUploadButton,
 } from '../components/transcript/TranscriptUpload.jsx';
 import { ClerkAuthService } from '../services/authService.js';
 import { ChatService } from '../services/chatService.js';
+import { ScheduleService } from '../services/scheduleService.js';
 import { TranscriptService } from '../services/transcriptService.js';
 
 export default function ClerkRoot({ apiClient }) {
@@ -67,10 +69,11 @@ function SignInScreen() {
 
 function SignedInChat({ apiClient }) {
   const { getToken, userId } = useAuth();
-  const { chatService, transcriptService } = useMemo(() => {
+  const { chatService, scheduleService, transcriptService } = useMemo(() => {
     const authService = new ClerkAuthService({ getToken, userId });
     return {
       chatService: new ChatService(apiClient, authService),
+      scheduleService: new ScheduleService(apiClient, authService),
       transcriptService: new TranscriptService(apiClient, authService),
     };
   }, [apiClient, getToken, userId]);
@@ -78,7 +81,12 @@ function SignedInChat({ apiClient }) {
   return (
     <TranscriptUploadProvider transcriptService={transcriptService}>
       <AppShell
-        actions={<TranscriptUploadButton />}
+        actions={(
+          <>
+            <ScheduleButton scheduleService={scheduleService} />
+            <TranscriptUploadButton />
+          </>
+        )}
         userMenu={<UserButton />}
       >
         <ChatContainer chatService={chatService} />
