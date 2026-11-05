@@ -13,9 +13,11 @@ class _FakeAuditRepo:
         student=None,
         requirements=None,
         in_progress=None,
+        substitutions=None,
     ):
         self._completed = completed or []
         self._in_progress = in_progress or []
+        self._substitutions = substitutions or []
         self._student = student
         self._program = {
             'program_id': 'p1',
@@ -58,6 +60,10 @@ class _FakeAuditRepo:
     def get_in_progress_courses(self, student_id: str):
         del student_id
         return self._in_progress
+
+    def get_substitutions(self, student_id: str):
+        del student_id
+        return self._substitutions
 
     def get_program_requirements(self, student_id: str):
         return list(self._requirements)
@@ -119,6 +125,7 @@ def _service(
     student=None,
     requirements=None,
     in_progress=None,
+    substitutions=None,
 ) -> AuditService:
     return AuditService(
         _FakeAuditRepo(
@@ -126,6 +133,7 @@ def _service(
             student=student,
             requirements=requirements,
             in_progress=in_progress,
+            substitutions=substitutions,
         ),
         CourseCatalogService(_FakeCatalogRepo()),
     )
@@ -448,3 +456,85 @@ def test_check_prerequisites_false_when_missing():
         in_progress=[{'code': 'MSSE 692', 'credits': 3}],
     )
     assert underway.check_prerequisites('s1', 'MSSE 696') is True
+
+
+def _declared(requirement: str, substitute: str) -> dict:
+    return {
+        'substitution_id': f'{requirement}-{substitute}',
+        'requirement_code': requirement,
+        'substitute_code': substitute,
+        'substitute_title': substitute,
+        'substitute_credits': 3,
+        'source': 'student',
+    }
+
+
+def test_completed_substitute_satisfies_requirement():
+    """A declared substitute the student completed fills the requirement."""
+    result = _service(
+        completed=[
+            {'code': 'MSSE 601', 'credits': 3},
+            {'code': 'MSSE 610', 'credits': 3},
+        ],
+        student={'student_id': 's1', 'program_id': 'p1'},
+        substitutions=[_declared('MSSE 635', 'MSSE 610')],
+    ).audit('s1')
+    assert result['missingCourses'] == ['MSSE 696']
+    matches = {m['code']: m for m in result['requirementMatches']}
+    assert matches['MSSE 635'] == {
+        'code': 'MSSE 635',
+        'status': 'substitute',
+        'satisfiedBy': 'MSSE 610',
+    }
+    assert result['substitutions'][0]['counted'] is True
+
+
+def test_substitute_not_on_transcript_does_not_count():
+    """A declaration without the substitute taken leaves the requirement open."""
+    result = _service(
+        completed=[{'code': 'MSSE 601', 'credits': 3}],
+        student={'student_id': 's1', 'program_id': 'p1'},
+        substitutions=[_declared('MSSE 635', 'MSSE 610')],
+    ).audit('s1')
+    assert 'MSSE 635' in result['missingCourses']
+    assert result['substitutions'][0]['counted'] is False
+
+
+def test_direct_completion_beats_substitute():
+    """Once the required course is completed, a substitute is ignored."""
+    result = _service(
+        completed=[
+            {'code': 'MSSE 601', 'credits': 3},
+            {'code': 'MSSE 635', 'credits': 3},
+            {'code': 'MSSE 610', 'credits': 3},
+        ],
+        student={'student_id': 's1', 'program_id': 'p1'},
+        substitutions=[_declared('MSSE 635', 'MSSE 610')],
+    ).audit('s1')
+    matches = {m['code']: m for m in result['requirementMatches']}
+    assert matches['MSSE 635']['status'] == 'direct'
+    assert result['substitutions'][0]['counted'] is False
+
+
+def test_in_progress_substitute_counts():
+    """A substitute the student is taking now counts toward the requirement."""
+    result = _service(
+        completed=[{'code': 'MSSE 601', 'credits': 3}],
+        in_progress=[{'code': 'MSSE 610', 'credits': 3}],
+        student={'student_id': 's1', 'program_id': 'p1'},
+        substitutions=[_declared('MSSE 635', 'MSSE 610')],
+    ).audit('s1')
+    assert 'MSSE 635' not in result['missingCourses']
+    assert result['substitutions'][0]['counted'] is True
+
+
+def test_transcript_courses_exclude_required_ones():
+    """The pool lists only transcript courses that are not required."""
+    result = _service(
+        completed=[
+            {'code': 'MSSE 601', 'credits': 3, 'title': 'Req'},
+            {'code': 'MSSE 610', 'credits': 3, 'title': 'Extra'},
+        ],
+        student={'student_id': 's1', 'program_id': 'p1'},
+    ).audit('s1')
+    assert [c['code'] for c in result['transcriptCourses']] == ['MSSE 610']

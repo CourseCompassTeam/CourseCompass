@@ -45,6 +45,18 @@ class IStudentAuditRepository(abc.ABC):
         del student_id
         return []
 
+    def get_substitutions(self, student_id: str) -> list[dict]:
+        """Gets a student's declared substitutions.
+
+        Args:
+            student_id: The student to look up.
+
+        Returns:
+            Declared substitutions. Empty when the source has none.
+        """
+        del student_id
+        return []
+
     @abc.abstractmethod
     def get_program_requirements(self, student_id: str) -> list[dict]:
         """Gets the requirements of the student's program.

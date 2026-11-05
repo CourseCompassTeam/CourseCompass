@@ -1,5 +1,6 @@
 import { createContext, useContext, useId, useRef, useState } from 'react';
 
+import SubstitutionDialog from './SubstitutionDialog.jsx';
 import {
   courseCountLabel,
   formatCourseStatus,
@@ -8,6 +9,8 @@ import {
 
 // Opens the upload dialog. Null outside a TranscriptUploadProvider.
 const OpenUploadContext = createContext(null);
+// Opens the substitution matcher. Null outside a TranscriptUploadProvider.
+const OpenMatcherContext = createContext(null);
 
 /**
  * Returns a function that opens the transcript upload dialog, or null when
@@ -15,6 +18,14 @@ const OpenUploadContext = createContext(null);
  */
 export function useOpenTranscriptUpload() {
   return useContext(OpenUploadContext);
+}
+
+/**
+ * Returns a function that opens the substitution matcher, or null when no
+ * provider is mounted.
+ */
+export function useOpenSubstitutionMatcher() {
+  return useContext(OpenMatcherContext);
 }
 
 /** Header button that opens the transcript upload dialog. */
@@ -52,10 +63,19 @@ export default function TranscriptUploadProvider({
   const [isUploading, setIsUploading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [matcherOpen, setMatcherOpen] = useState(false);
 
   function open() {
     reset();
     dialogRef.current?.showModal();
+  }
+
+  // The matcher opens on top of the upload dialog's result, so close it.
+  function openMatcher() {
+    if (!isUploading) {
+      dialogRef.current?.close();
+    }
+    setMatcherOpen(true);
   }
 
   function close() {
@@ -91,7 +111,13 @@ export default function TranscriptUploadProvider({
 
   return (
     <OpenUploadContext.Provider value={open}>
+      <OpenMatcherContext.Provider value={openMatcher}>
       {children}
+      <SubstitutionDialog
+        transcriptService={transcriptService}
+        isOpen={matcherOpen}
+        onClose={() => setMatcherOpen(false)}
+      />
       <dialog
         ref={dialogRef}
         className="dialog"
@@ -117,7 +143,12 @@ export default function TranscriptUploadProvider({
         </div>
 
         {result ? (
-          <UploadResult result={result} onDone={close} onAgain={reset} />
+          <UploadResult
+            result={result}
+            onDone={close}
+            onAgain={reset}
+            onMatch={openMatcher}
+          />
         ) : (
           <form className="dialog__body" onSubmit={handleSubmit}>
             <p>
@@ -175,13 +206,14 @@ export default function TranscriptUploadProvider({
           </form>
         )}
       </dialog>
+      </OpenMatcherContext.Provider>
     </OpenUploadContext.Provider>
   );
 }
 
 /** What was saved and skipped after a successful upload. */
-function UploadResult({ result, onDone, onAgain }) {
-  const { saved, skipped } = result;
+function UploadResult({ result, onDone, onAgain, onMatch }) {
+  const { saved, skipped, clearedSubstitutions = [] } = result;
   return (
     <div className="dialog__body" role="status">
       <p className="upload-result__headline">
@@ -241,10 +273,29 @@ function UploadResult({ result, onDone, onAgain }) {
         </section>
       )}
 
+      {clearedSubstitutions.length > 0 && (
+        <div className="callout callout--warning" role="note">
+          <p className="callout__title">
+            {courseCountLabel(clearedSubstitutions.length)} of your
+            substitutions no longer apply.
+          </p>
+          <p>
+            {clearedSubstitutions
+              .map((row) => `${row.substituteCode} for ${row.requirementCode}`)
+              .join(', ')}
+            . Match them again if they still apply.
+          </p>
+        </div>
+      )}
+
       <div className="dialog__actions">
         <button type="button" className="button button--secondary"
           onClick={onAgain}>
           Upload another
+        </button>
+        <button type="button" className="button button--secondary"
+          onClick={onMatch}>
+          Match courses
         </button>
         <button type="button" className="button" onClick={onDone}>
           Done

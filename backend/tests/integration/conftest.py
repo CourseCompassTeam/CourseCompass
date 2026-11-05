@@ -114,6 +114,10 @@ class _AuditRepo:
         del student_id
         return []
 
+    def get_substitutions(self, student_id: str):
+        del student_id
+        return []
+
     def get_program_requirements(self, student_id: str):
         del student_id
         return list(self._requirements)

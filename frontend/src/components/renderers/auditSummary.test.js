@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { summarizeAudit } from './auditSummary.js';
+import { summarizeAudit, summarizeSubstitution } from './auditSummary.js';
 
 describe('summarizeAudit', () => {
   it('computes progress and adds course titles', () => {
@@ -44,5 +44,30 @@ describe('summarizeAudit', () => {
     });
     expect(summary.met).toBe(true);
     expect(summary.percent).toBe(100);
+  });
+});
+
+describe('summarizeSubstitution', () => {
+  it('reads as substitute for requirement when counted', () => {
+    expect(summarizeSubstitution({
+      requirementCode: 'MSSE 613',
+      substituteCode: 'MSSE 600',
+      counted: true,
+      reason: 'counted',
+    })).toEqual({
+      substitute: 'MSSE 600',
+      requirement: 'MSSE 613',
+      counted: true,
+      note: '',
+    });
+  });
+
+  it('explains why a declaration is not counted', () => {
+    expect(summarizeSubstitution({
+      requirementCode: 'MSSE 601',
+      substituteCode: 'MSSE 600',
+      counted: false,
+      reason: 'already_completed',
+    }).note).toMatch(/already completed/);
   });
 });

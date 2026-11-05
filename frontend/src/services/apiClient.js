@@ -40,14 +40,39 @@ export class RestAPIClient {
    * @param {string} endpoint For example '/api/v1/query'.
    * @param {object} body Request body.
    * @param {string} token Session token, sent as a Bearer token.
+   * @param {object} headers Extra request headers.
    * @returns {Promise<object>} The parsed JSON response.
    * @throws {ApiError} If the request fails or returns an error status.
    */
-  async post(endpoint, body, token) {
-    return this.#send(endpoint, {
-      headers: { 'Content-Type': 'application/json' },
+  async post(endpoint, body, token, headers = {}) {
+    return this.#send('POST', endpoint, {
+      headers: { ...headers, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     }, token);
+  }
+
+  /**
+   * Sends a GET request to the backend.
+   * @param {string} endpoint For example '/api/v1/transcript/review'.
+   * @param {string} token Session token, sent as a Bearer token.
+   * @param {object} headers Extra request headers.
+   * @returns {Promise<object>} The parsed JSON response.
+   * @throws {ApiError} If the request fails or returns an error status.
+   */
+  async get(endpoint, token, headers = {}) {
+    return this.#send('GET', endpoint, { headers: { ...headers } }, token);
+  }
+
+  /**
+   * Sends a DELETE request to the backend.
+   * @param {string} endpoint For example '/api/v1/transcript/substitutions/1'.
+   * @param {string} token Session token, sent as a Bearer token.
+   * @param {object} headers Extra request headers.
+   * @returns {Promise<object>} The parsed JSON response.
+   * @throws {ApiError} If the request fails or returns an error status.
+   */
+  async delete(endpoint, token, headers = {}) {
+    return this.#send('DELETE', endpoint, { headers: { ...headers } }, token);
   }
 
   /**
@@ -63,11 +88,11 @@ export class RestAPIClient {
   async postFile(endpoint, file, token, headers = {}) {
     const formData = new FormData();
     formData.append('file', file);
-    return this.#send(endpoint, { headers: { ...headers }, body: formData },
-      token);
+    return this.#send('POST', endpoint,
+      { headers: { ...headers }, body: formData }, token);
   }
 
-  async #send(endpoint, { headers, body }, token) {
+  async #send(method, endpoint, { headers, body }, token) {
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
@@ -75,7 +100,7 @@ export class RestAPIClient {
     let response;
     try {
       response = await fetch(this.baseUrl + endpoint, {
-        method: 'POST',
+        method,
         headers,
         body,
       });
