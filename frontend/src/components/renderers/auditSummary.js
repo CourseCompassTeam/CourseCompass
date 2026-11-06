@@ -54,3 +54,31 @@ export function summarizeAudit(content = {}) {
 function numberOrNull(value) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
+
+// Wording for why a declared substitution does or does not count.
+const SUBSTITUTION_NOTES = {
+  counted: '',
+  already_completed: 'You already completed this requirement.',
+  substitute_not_taken: 'This course is not on your transcript yet.',
+  not_required: 'This course is not a required course in your program.',
+};
+
+/**
+ * @param {{requirementCode: string, substituteCode: string,
+ *     substituteTitle?: string, counted: boolean, reason?: string}} row
+ *     One declared substitution from the audit.
+ * @returns {{substitute: string, requirement: string, counted: boolean,
+ *     note: string}} Labels for the audit's substitutions list.
+ */
+export function summarizeSubstitution(row) {
+  const counted = row.counted === true;
+  const note = counted
+    ? ''
+    : SUBSTITUTION_NOTES[row.reason] ?? 'This substitution is not counted yet.';
+  return {
+    substitute: row.substituteCode,
+    requirement: row.requirementCode,
+    counted,
+    note,
+  };
+}

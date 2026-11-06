@@ -3,6 +3,7 @@
 // AuthService interface:
 //   getSessionToken() -> Promise<string>
 //   getUserId() -> string
+//   getDevStudentId() -> string  (empty unless in dev mode)
 
 /** AuthService backed by Clerk's useAuth() values. */
 export class ClerkAuthService {
@@ -22,10 +23,21 @@ export class ClerkAuthService {
   getUserId() {
     return this._userId ?? '';
   }
+
+  getDevStudentId() {
+    return '';
+  }
 }
 
 /** Fake signed-in user, for local development without a Clerk key. */
 export class DevAuthService {
+  /**
+   * @param {string} devStudentId Seed student to act as (see config.js).
+   */
+  constructor(devStudentId = '') {
+    this._devStudentId = devStudentId;
+  }
+
   // No token, so no Authorization header is sent. The backend verifies
   // Bearer tokens and would reject a made-up one with 401.
   async getSessionToken() {
@@ -34,5 +46,9 @@ export class DevAuthService {
 
   getUserId() {
     return 'dev-user';
+  }
+
+  getDevStudentId() {
+    return this._devStudentId;
   }
 }

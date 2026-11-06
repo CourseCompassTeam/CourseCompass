@@ -45,6 +45,18 @@ class IStudentAuditRepository(abc.ABC):
         del student_id
         return []
 
+    def get_substitutions(self, student_id: str) -> list[dict]:
+        """Gets a student's declared substitutions.
+
+        Args:
+            student_id: The student to look up.
+
+        Returns:
+            Declared substitutions. Empty when the source has none.
+        """
+        del student_id
+        return []
+
     @abc.abstractmethod
     def get_program_requirements(self, student_id: str) -> list[dict]:
         """Gets the requirements of the student's program.
@@ -223,17 +235,48 @@ class IStudentMilestoneRepository(abc.ABC):
 class IScheduleRepository(abc.ABC):
     """Student schedule tables."""
 
+
     @abc.abstractmethod
     def get_schedules(self, student_id: str) -> list[dict]:
         """Gets schedules for a student.
-
+ 
         Args:
             student_id: The student to look up.
-
+ 
         Returns:
             Schedule rows with nested terms and items when present.
         """
-
+ 
+    @abc.abstractmethod
+    def replace_draft(
+        self, student_id: str, planned_terms: list[tuple[str, list[str]]]
+    ) -> str | None:
+        """Replaces the student's draft schedules with a new draft.
+ 
+        Exported schedules are kept. The old drafts are deleted only if the new
+        one saves.
+ 
+        Args:
+            student_id: UUID or clerk user id.
+            planned_terms: (term name, [course_id, ...]) in the order taken.
+ 
+        Returns:
+            The new schedule_id, or None if the student does not exist.
+        """
+ 
+    @abc.abstractmethod
+    def mark_exported(self, student_id: str, schedule_id: str) -> bool:
+        """Marks one of the student's schedules as exported.
+ 
+        Args:
+            student_id: UUID or clerk user id.
+            schedule_id: The schedule to mark.
+ 
+        Returns:
+            False if the student or schedule does not exist, or the schedule
+            belongs to another student.
+        """
+ 
 
 class IIngestionLogRepository(abc.ABC):
     """Admin ingestion log table."""
@@ -247,4 +290,28 @@ class IIngestionLogRepository(abc.ABC):
 
         Returns:
             Ingestion log rows.
+        """
+
+
+class IStudentRepository(abc.ABC):
+    """Interface for writing student rows."""
+
+    @abc.abstractmethod
+    def insert_student_if_absent(
+        self,
+        clerk_user_id: str,
+        email: str,
+        full_name: str,
+        program_id: str,
+    ) -> bool:
+        """Inserts an active student unless the Clerk id or email exists.
+
+        Args:
+            clerk_user_id: Clerk ``sub`` for the new user.
+            email: Primary email address.
+            full_name: Display name.
+            program_id: Program the student is enrolled in.
+
+        Returns:
+            True when a row was inserted, False when one already matched.
         """

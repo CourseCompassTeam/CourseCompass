@@ -111,6 +111,22 @@ const SAMPLE_RESPONSES = {
   },
 };
 
+// Shaped like a POST /api/v1/transcript/upload response (fields the UI
+// doesn't use are left out).
+const SAMPLE_TRANSCRIPT_UPLOAD = {
+  status: 'success',
+  course_count: 4,
+  saved: [
+    { code: 'MSSE 601', status: 'completed', term: '082525-102425',
+      grade: 'A' },
+    { code: 'MSSE 603', status: 'completed', term: '082525-102425',
+      grade: 'A-' },
+    { code: 'MSSE 610', status: 'in_progress', term: '102725-122125',
+      grade: 'IP' },
+  ],
+  skipped: [{ code: 'MSSE 600', reason: 'not in course catalog' }],
+};
+
 // [sample, response type, pattern]. The first match wins.
 const INTENT_KEYWORDS = [
   ['syllabus', 'recommendation', /syllabus|weekly topics|week by week/i],
@@ -119,6 +135,80 @@ const INTENT_KEYWORDS = [
   ['recommendation', 'recommendation',
     /recommend|interest|elective|suggest|next term/i],
 ];
+
+// Sample matcher data for mock mode. Codes match the seed catalog.
+const MOCK_SUBSTITUTION_REVIEW = {
+  requirements: [
+    { code: 'MSSE 635', title: 'Software Architecture and Design', credits: 3 },
+    { code: 'MSSE 696', title: 'Software Engineering Practicum II', credits: 3 },
+  ],
+  courses: [
+    { code: 'MSSE 610', title: 'Sample transcript course', credits: 3, status: 'completed' },
+  ],
+  substitutions: [],
+};
+
+// Sample schedule planner data, in the order the mock places courses.
+// Schedules aren't saved, so the build response has no schedule ids.
+// start_date and end_date aren't in the backend contract yet (requested
+// for calendar export). 2027 SUM 8W1 has no dates, to show a term being
+// left out of the calendar file.
+const MOCK_SCHEDULE_TERMS = [
+  ['2027 SPR 8W1', '2027-01-11', '2027-03-07'],
+  ['2027 SPR 8W2', '2027-03-08', '2027-05-02'],
+  ['2027 SUM 8W1', null, null],
+];
+const MOCK_REMAINING_COURSES = [
+  ['MSSE 613', 'Software Project Management'],
+  ['MSSE 635', 'Software Architecture and Design'],
+  ['MSSE 640', 'Software Quality and Test'],
+  ['MSSE 642', 'Software Assurance'],
+  ['MSSE 692', 'Software Engineering Practicum I'],
+  ['MSSE 696', 'Software Engineering Practicum II'],
+];
+const MOCK_UNOFFERED_COURSE = {
+  course_id: 'mock-course-mscc-697',
+  code: 'MSCC 697',
+  title: 'Capstone',
+  reason: 'not offered in any available term',
+};
+
+/**
+ * Plans the sample courses, coursesPerTerm at a time.
+ * @returns {{schedule: ?object, unplaced: object[]}} Shaped like the
+ *     POST /api/v1/schedule/build response.
+ */
+function planMockSchedule(coursesPerTerm) {
+  const terms = MOCK_SCHEDULE_TERMS.map(([termName, start, end], index) => {
+    const courses = MOCK_REMAINING_COURSES.slice(
+      index * coursesPerTerm, (index + 1) * coursesPerTerm,
+    );
+    return {
+      term_name: termName,
+      term_order: index + 1,
+      start_date: start,
+      end_date: end,
+      items: courses.map(([code, title]) => ({
+        course_id: `mock-course-${code.replace(' ', '-').toLowerCase()}`,
+        code,
+        title,
+        credits: 3,
+      })),
+    };
+  }).filter((term) => term.items.length > 0);
+
+  const placedCount = MOCK_SCHEDULE_TERMS.length * coursesPerTerm;
+  const unplaced = [
+    ...MOCK_REMAINING_COURSES.slice(placedCount).map(([code, title]) => ({
+      course_id: `mock-course-${code.replace(' ', '-').toLowerCase()}`,
+      code,
+      title,
+      reason: 'no available term left after its prerequisites',
+    })),
+    MOCK_UNOFFERED_COURSE,
+  ];
+  return { schedule: { terms }, unplaced };
+}
 
 export class MockAPIClient {
   /**
@@ -136,8 +226,44 @@ export class MockAPIClient {
    * @param {string} token Ignored.
    * @returns {Promise<object>} A response shaped like POST /api/v1/query.
    */
+  /**
+   * Returns a sample transcript upload result.
+   * Name the file "simulate error.pdf" to test the error state.
+   * @param {string} endpoint Ignored.
+   * @param {File} file The uploaded file.
+   * @param {string} token Ignored.
+   * @param {object} headers Ignored.
+   * @returns {Promise<object>} A response shaped like
+   *     POST /api/v1/transcript/upload.
+   */
+  async postFile(endpoint, file, token, headers = {}) {
+    await new Promise((resolve) => setTimeout(resolve, this.delayMs));
+
+    if (/simulate error/i.test(file?.name ?? '')) {
+      throw new ApiError(400, 'BAD_REQUEST', 'Failed to parse transcript PDF.');
+    }
+    return SAMPLE_TRANSCRIPT_UPLOAD;
+  }
+
+  async get(endpoint) {
+    await new Promise((resolve) => setTimeout(resolve, this.delayMs));
+    return MOCK_SUBSTITUTION_REVIEW;
+  }
+
+  async delete(endpoint) {
+    await new Promise((resolve) => setTimeout(resolve, this.delayMs));
+    return MOCK_SUBSTITUTION_REVIEW;
+  }
+
   async post(endpoint, body, token) {
     await new Promise((resolve) => setTimeout(resolve, this.delayMs));
+
+    if (endpoint.endsWith('/transcript/substitutions')) {
+      return MOCK_SUBSTITUTION_REVIEW;
+    }
+    if (endpoint === '/api/v1/schedule/build') {
+      return this.#buildSchedule(body);
+    }
 
     const query = body?.query ?? '';
     if (/simulate error/i.test(query)) {
@@ -152,5 +278,15 @@ export class MockAPIClient {
       content: SAMPLE_RESPONSES[sample],
       timestamp: new Date().toISOString(),
     };
+  }
+
+  #buildSchedule(body) {
+    const coursesPerTerm = body?.courses_per_term ?? 2;
+    if (!Number.isInteger(coursesPerTerm) || coursesPerTerm < 1
+        || coursesPerTerm > 6) {
+      throw new ApiError(400, 'BAD_REQUEST',
+        'courses_per_term must be a whole number from 1 to 6.');
+    }
+    return { status: 'success', ...planMockSchedule(coursesPerTerm) };
   }
 }

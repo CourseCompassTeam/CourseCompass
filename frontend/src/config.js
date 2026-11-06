@@ -13,4 +13,8 @@ export const config = {
 
   // 'true' = use MockAPIClient instead of calling the backend.
   useMockApi: env.VITE_USE_MOCK_API === 'true',
+
+  // Dev mode only: seed student to act as, sent as X-Dev-Student-Id.
+  // The backend honors it only when APP_ENV is local, staging, or test.
+  devStudentId: env.VITE_DEV_STUDENT_ID ?? '',
 };

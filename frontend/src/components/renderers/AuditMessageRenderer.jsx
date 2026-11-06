@@ -1,9 +1,13 @@
 import { useState } from 'react';
 
+import {
+  useOpenSubstitutionMatcher,
+  useOpenTranscriptUpload,
+} from '../transcript/TranscriptUpload.jsx';
 import FormattedText from './FormattedText.jsx';
 import MessageBubble from './MessageBubble.jsx';
 import MilestoneChecklist from './MilestoneChecklist.jsx';
-import { summarizeAudit } from './auditSummary.js';
+import { summarizeAudit, summarizeSubstitution } from './auditSummary.js';
 
 // Longer course lists start collapsed so the bubble stays easy to scan.
 const COLLAPSED_COURSE_COUNT = 5;
@@ -28,6 +32,8 @@ export default function AuditMessageRenderer({ message }) {
   const { message: text } = message.content;
   const audit = summarizeAudit(message.content);
   const [showAll, setShowAll] = useState(false);
+  const openUpload = useOpenTranscriptUpload();
+  const openMatcher = useOpenSubstitutionMatcher();
   const hasNumbers = audit.completed != null || audit.remaining != null ||
     audit.missing.length > 0 || audit.met;
 
@@ -38,122 +44,181 @@ export default function AuditMessageRenderer({ message }) {
     : audit.missing.slice(0, COLLAPSED_COURSE_COUNT);
 
   return (
-    <MessageBubble from="assistant" timestamp={message.timestamp}>
-      {!hasNumbers && text && <FormattedText text={text} />}
-      {hasNumbers && <div className="audit">
-        <p className="audit__eyebrow">
-          Degree audit
-          {audit.programName && <> · {audit.programName}</>}
-        </p>
+    <>
+      <MessageBubble from="assistant" timestamp={message.timestamp}>
+        {!hasNumbers && text && <FormattedText text={text} />}
+        {hasNumbers && <div className="audit">
+          <p className="audit__eyebrow">
+            Degree audit
+            {audit.programName && <> · {audit.programName}</>}
+          </p>
 
-        {audit.completed != null && (
-          <p className="audit__headline">
-            <span className="audit__big">{audit.completed}</span>
-            {audit.required != null && <> of {audit.required}</>} credits
-            completed
-            {audit.percent != null && (
-              <span className="audit__percent">{audit.percent}%</span>
+          {audit.completed != null && (
+            <p className="audit__headline">
+              <span className="audit__big">{audit.completed}</span>
+              {audit.required != null && <> of {audit.required}</>} credits
+              completed
+              {audit.percent != null && (
+                <span className="audit__percent">{audit.percent}%</span>
+              )}
+            </p>
+          )}
+
+          {audit.percent != null && (
+            <div
+              className="progress"
+              role="progressbar"
+              aria-label="Degree progress"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={audit.percent}
+            >
+              <div
+                className={`progress__fill${audit.met ? ' progress__fill--done' : ''}`}
+                style={{ width: `${audit.percent}%` }}
+              />
+            </div>
+          )}
+
+          <p className={`audit__status${audit.met ? ' audit__status--done' : ''}`}>
+            {audit.met ? (
+              '✓ All degree requirements met'
+            ) : (
+              <>
+                {audit.remaining != null && (
+                  <strong>{audit.remaining} credits remaining</strong>
+                )}
+                {audit.remaining != null && audit.missing.length > 0 && ' · '}
+                {audit.missing.length > 0 && (
+                  <>
+                    {audit.missing.length}{' '}
+                    {audit.missing.length === 1 ? 'course' : 'courses'} left
+                  </>
+                )}
+              </>
             )}
           </p>
+        </div>}
+
+        {audit.missing.length > 0 && (
+          <section>
+            <h3 className="bubble__heading">Still required</h3>
+            <ul className="course-rows">
+              {visibleCourses.map((course) => (
+                <li key={course.code} className="course-row">
+                  <span className="course-row__code">{course.code}</span>
+                  <span className="course-row__title">{course.title}</span>
+                  {course.credits != null && (
+                    <span className="course-row__credits">
+                      {course.credits} cr
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+            {hiddenCount > 0 && (
+              <button
+                type="button"
+                className="link-button"
+                onClick={() => setShowAll(!showAll)}
+              >
+                {showAll ? 'Show fewer' : `Show all ${audit.missing.length} courses`}
+              </button>
+            )}
+            {openMatcher && (
+              <div className="audit__actions">
+                <button
+                  type="button"
+                  className="button button--secondary"
+                  onClick={openMatcher}
+                >
+                  Match transcript courses
+                </button>
+              </div>
+            )}
+          </section>
         )}
 
-        {audit.percent != null && (
-          <div
-            className="progress"
-            role="progressbar"
-            aria-label="Degree progress"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={audit.percent}
+        {(message.content.substitutions || []).length > 0 && (
+          <section className="audit-subs">
+            <h3 className="bubble__heading">Substitutions you declared</h3>
+            <ul className="course-rows">
+              {message.content.substitutions.map((row) => {
+                const item = summarizeSubstitution(row);
+                return (
+                  <li key={row.substitutionId} className="course-row">
+                    <span className="course-row__code">{item.substitute}</span>
+                    <span className="course-row__title">
+                      substitutes for {item.requirement}
+                      {!item.counted && item.note && (
+                        <span className="audit-sub__note">{item.note}</span>
+                      )}
+                    </span>
+                    <span className={`course-row__credits${item.counted ? ' audit-sub__counted' : ''}`}>
+                      {item.counted ? '✓ Counted' : 'Not counted'}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="bubble__hint">
+              Substitutions are your own choices. Verify them with your
+              advisor before relying on them for graduation.
+            </p>
+          </section>
+        )}
+
+        {(message.content.milestones || []).length > 0 && (
+          <MilestoneChecklist
+            milestones={message.content.milestones}
+            showPrompt={message.content.offerMilestones}
+          />
+        )}
+
+        {note && <p>{note}</p>}
+        {message.content.needsAdvising && message.content.advisingUrl && (
+          <p>
+            {message.content.leadCourse?.code} is not offered next term,
+            and no other required course is open then. Book an advising
+            appointment.
+          </p>
+        )}
+        {message.content.needsAdvising && message.content.advisingUrl && (
+          <a
+            className="button button--secondary"
+            href={message.content.advisingUrl}
+            target="_blank"
+            rel="noopener noreferrer"
           >
-            <div
-              className={`progress__fill${audit.met ? ' progress__fill--done' : ''}`}
-              style={{ width: `${audit.percent}%` }}
-            />
-          </div>
+            {message.content.advisingResourceName
+              ?? 'Book an advising appointment'}
+          </a>
         )}
 
-        <p className={`audit__status${audit.met ? ' audit__status--done' : ''}`}>
-          {audit.met ? (
-            '✓ All degree requirements met'
-          ) : (
-            <>
-              {audit.remaining != null && (
-                <strong>{audit.remaining} credits remaining</strong>
-              )}
-              {audit.remaining != null && audit.missing.length > 0 && ' · '}
-              {audit.missing.length > 0 && (
-                <>
-                  {audit.missing.length}{' '}
-                  {audit.missing.length === 1 ? 'course' : 'courses'} left
-                </>
-              )}
-            </>
-          )}
-        </p>
-      </div>}
+        {hasNumbers && text && (
+          <details className="explanation">
+            <summary>Show full explanation</summary>
+            <FormattedText text={text} />
+          </details>
+        )}
+      </MessageBubble>
 
-      {audit.missing.length > 0 && (
-        <section>
-          <h3 className="bubble__heading">Still required</h3>
-          <ul className="course-rows">
-            {visibleCourses.map((course) => (
-              <li key={course.code} className="course-row">
-                <span className="course-row__code">{course.code}</span>
-                <span className="course-row__title">{course.title}</span>
-                {course.credits != null && (
-                  <span className="course-row__credits">
-                    {course.credits} cr
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-          {hiddenCount > 0 && (
-            <button
-              type="button"
-              className="link-button"
-              onClick={() => setShowAll(!showAll)}
-            >
-              {showAll ? 'Show fewer' : `Show all ${audit.missing.length} courses`}
-            </button>
-          )}
-        </section>
+      {/* No completed credits usually means no transcript is on file yet. */}
+      {audit.completed === 0 && openUpload && (
+        <MessageBubble from="assistant" timestamp={message.timestamp}>
+          <p>
+            I don't see any completed courses on your record. If you've
+            already taken classes, you may need to upload your transcript.
+          </p>
+          <button
+            type="button"
+            className="button button--secondary"
+            onClick={openUpload}
+          >
+            Upload transcript
+          </button>
+        </MessageBubble>
       )}
-
-      {(message.content.milestones || []).length > 0 && (
-        <MilestoneChecklist
-          milestones={message.content.milestones}
-          showPrompt={message.content.offerMilestones}
-        />
-      )}
-
-      {note && <p>{note}</p>}
-      {message.content.needsAdvising && message.content.advisingUrl && (
-        <p>
-          {message.content.leadCourse?.code} is not offered next term,
-          and no other required course is open then. Book an advising
-          appointment.
-        </p>
-      )}
-      {message.content.needsAdvising && message.content.advisingUrl && (
-        <a
-          className="button button--secondary"
-          href={message.content.advisingUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {message.content.advisingResourceName
-            ?? 'Book an advising appointment'}
-        </a>
-      )}
-
-      {hasNumbers && text && (
-        <details className="explanation">
-          <summary>Show full explanation</summary>
-          <FormattedText text={text} />
-        </details>
-      )}
-    </MessageBubble>
+    </>
   );
 }

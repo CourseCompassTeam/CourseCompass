@@ -2,11 +2,13 @@
 //
 // ChatService depends on the APIClient interface, not on RestAPIClient,
 // so tests and local development can pass in another implementation
-// (Dependency Inversion). APIClient exposes only post(), the one method
-// ChatService needs (Interface Segregation).
+// (Dependency Inversion). APIClient exposes only the methods the services
+// need (Interface Segregation).
 //
 // APIClient interface:
 //   post(endpoint: string, body: object, token: string) -> Promise<object>
+//   postFile(endpoint: string, file: File, token: string,
+//            headers?: object) -> Promise<object>
 
 /** An error response, parsed from the backend's standard error envelope. */
 export class ApiError extends Error {
@@ -38,11 +40,59 @@ export class RestAPIClient {
    * @param {string} endpoint For example '/api/v1/query'.
    * @param {object} body Request body.
    * @param {string} token Session token, sent as a Bearer token.
+   * @param {object} headers Extra request headers.
    * @returns {Promise<object>} The parsed JSON response.
    * @throws {ApiError} If the request fails or returns an error status.
    */
-  async post(endpoint, body, token) {
-    const headers = { 'Content-Type': 'application/json' };
+  async post(endpoint, body, token, headers = {}) {
+    return this.#send('POST', endpoint, {
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }, token);
+  }
+
+  /**
+   * Sends a GET request to the backend.
+   * @param {string} endpoint For example '/api/v1/transcript/review'.
+   * @param {string} token Session token, sent as a Bearer token.
+   * @param {object} headers Extra request headers.
+   * @returns {Promise<object>} The parsed JSON response.
+   * @throws {ApiError} If the request fails or returns an error status.
+   */
+  async get(endpoint, token, headers = {}) {
+    return this.#send('GET', endpoint, { headers: { ...headers } }, token);
+  }
+
+  /**
+   * Sends a DELETE request to the backend.
+   * @param {string} endpoint For example '/api/v1/transcript/substitutions/1'.
+   * @param {string} token Session token, sent as a Bearer token.
+   * @param {object} headers Extra request headers.
+   * @returns {Promise<object>} The parsed JSON response.
+   * @throws {ApiError} If the request fails or returns an error status.
+   */
+  async delete(endpoint, token, headers = {}) {
+    return this.#send('DELETE', endpoint, { headers: { ...headers } }, token);
+  }
+
+  /**
+   * Uploads a file as multipart/form-data, in the form field 'file'.
+   * Content-Type is left unset so the browser adds the boundary.
+   * @param {string} endpoint For example '/api/v1/transcript/upload'.
+   * @param {File} file The file to upload.
+   * @param {string} token Session token, sent as a Bearer token.
+   * @param {object} headers Extra request headers.
+   * @returns {Promise<object>} The parsed JSON response.
+   * @throws {ApiError} If the request fails or returns an error status.
+   */
+  async postFile(endpoint, file, token, headers = {}) {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.#send('POST', endpoint,
+      { headers: { ...headers }, body: formData }, token);
+  }
+
+  async #send(method, endpoint, { headers, body }, token) {
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
@@ -50,9 +100,9 @@ export class RestAPIClient {
     let response;
     try {
       response = await fetch(this.baseUrl + endpoint, {
-        method: 'POST',
+        method,
         headers,
-        body: JSON.stringify(body),
+        body,
       });
     } catch {
       throw new ApiError(0, 'NETWORK_ERROR', 'Could not reach the server.');

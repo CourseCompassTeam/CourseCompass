@@ -58,3 +58,52 @@ describe('RestAPIClient.post', () => {
     expect(error.status).toBe(0);
   });
 });
+
+describe('RestAPIClient.postFile', () => {
+  it('sends multipart form data without a Content-Type header', async () => {
+    const fetchMock = mockFetch(200, { saved: [], skipped: [] });
+    const client = new RestAPIClient('http://api.test');
+    const file = new File(['%PDF'], 'transcript.pdf', {
+      type: 'application/pdf',
+    });
+
+    const result = await client.postFile(
+      '/api/v1/transcript/upload', file, 'tok', { 'X-Extra': '1' },
+    );
+
+    expect(result).toEqual({ saved: [], skipped: [] });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('http://api.test/api/v1/transcript/upload');
+    expect(init.headers).toEqual({
+      'X-Extra': '1',
+      Authorization: 'Bearer tok',
+    });
+    expect(init.body).toBeInstanceOf(FormData);
+    expect(init.body.get('file')).toBeInstanceOf(File);
+    expect(init.body.get('file').name).toBe('transcript.pdf');
+  });
+
+  it('sends no Authorization header without a token', async () => {
+    const fetchMock = mockFetch(200, {});
+    const client = new RestAPIClient();
+
+    await client.postFile('/upload', new File([''], 'a.pdf'), '');
+
+    expect(fetchMock.mock.calls[0][1].headers).toEqual({});
+  });
+
+  it('parses the standard error envelope', async () => {
+    mockFetch(404, {
+      error: { code: 'NOT_FOUND', message: 'No student.', details: {} },
+    });
+    const client = new RestAPIClient();
+
+    const error = await client
+      .postFile('/upload', new File([''], 'a.pdf'), 'tok')
+      .catch((e) => e);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error.status).toBe(404);
+    expect(error.code).toBe('NOT_FOUND');
+  });
+});
