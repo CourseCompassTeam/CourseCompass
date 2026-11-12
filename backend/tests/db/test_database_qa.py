@@ -34,7 +34,7 @@ EXPECTED_TABLES = {
     "programs", "students", "courses", "prerequisites", "requirements",
     "transcript_entries", "syllabus_chunks", "schedules", "schedule_terms",
     "schedule_items", "advisor_contacts", "data_ingestion_logs", "milestones",
-    "terms", "course_offerings", "pgmigrations",
+    "terms", "course_offerings", "course_equivalencies", "student_substitutions", "pgmigrations",
 }
 
 EXPECTED_COLUMNS = {
@@ -53,6 +53,8 @@ EXPECTED_COLUMNS = {
     "milestones": {"milestone_id", "credit_min", "credit_max", "label", "next_actions"},
     "terms": {"term_id", "term_name", "start_date", "end_date"},
     "course_offerings": {"offering_id", "course_id", "term_id"},
+    "course_equivalencies": {"equivalency_id", "legacy_course_id", "replaces_course_id"},
+    "student_substitutions": {"substitution_id", "student_id", "requirement_course_id", "substitute_course_id", "source", "created_at"},
 }
 
 # (table, column, referenced table, delete rule). a=no action r=restrict c=cascade n=set null
@@ -71,6 +73,11 @@ EXPECTED_FOREIGN_KEYS = {
     ("schedule_items", "course_id", "courses", "r"),
     ("course_offerings", "course_id", "courses", "c"),
     ("course_offerings", "term_id", "terms", "c"),
+    ("course_equivalencies", "legacy_course_id", "courses", "r"),
+    ("course_equivalencies", "replaces_course_id", "courses", "r"),
+    ("student_substitutions", "student_id", "students", "c"),
+    ("student_substitutions", "requirement_course_id", "courses", "r"),
+    ("student_substitutions", "substitute_course_id", "courses", "r"),
 }
 
 EXPECTED_INDEXES = {
@@ -82,11 +89,18 @@ EXPECTED_INDEXES = {
     "unique_course_chunk_index",
 }
 
+# Counts for tables that only the seed writes. students and transcript_entries also
+# hold real user data (uploaded transcripts), so they are checked by SEED_STUDENT_EMAILS below.
 EXPECTED_COUNTS = {
-    "programs": 1, "courses": 12, "requirements": 12, "prerequisites": 25,
-    "students": 2, "transcript_entries": 12, "advisor_contacts": 2,
-    "milestones": 3, "course_offerings": 15, "syllabus_chunks": 34, "terms": 4,
+    "programs": 1, "courses": 15, "requirements": 12, "prerequisites": 25,
+    "advisor_contacts": 2, "milestones": 3, "course_offerings": 15,
+    "syllabus_chunks": 34, "terms": 4, "course_equivalencies": 3,
 }
+
+SEED_STUDENT_EMAILS = {"nearly.done@example.edu", "just.started@example.edu"}
+
+# The just-started test account's seed transcript, re-applied inside each test's rolled-back transaction.
+JUST_STARTED_SEED = [("MSSE 601", "Summer 2026", "completed"), ("MSSE 603", "Fall 2026", "in_progress")]
 
 NON_PRACTICUM = {
     "MSSE 601", "MSSE 603", "MSSE 610", "MSSE 613", "MSSE 615",
@@ -155,6 +169,16 @@ def new_student(conn, program_id, email=None, clerk=None, status="active"):
 def new_term(conn, name=None, start="2030-01-01", end="2030-02-01"):
     return scalar(conn, "INSERT INTO terms (term_name, start_date, end_date) VALUES (%s, %s, %s) RETURNING term_id",
                   (name or f"QA{uid()}", start, end))
+
+
+def reset_transcript(conn, email, rows):
+    """Replace a student's transcript with `rows` ((code, term, status) tuples). Caller must roll back."""
+    conn.execute("DELETE FROM transcript_entries WHERE student_id = "
+                 "(SELECT student_id FROM students WHERE email = %s)", (email,))
+    for code, term, status in rows:
+        conn.execute("INSERT INTO transcript_entries (student_id, course_id, term, status) "
+                     "SELECT s.student_id, c.course_id, %s, %s FROM students s, courses c "
+                     "WHERE s.email = %s AND c.code = %s", (term, status, email, code))
 
 
 def missing_prereqs(conn, email, course_code):
@@ -228,6 +252,11 @@ class TestSeedPersistence:
         assert scalar(conn, f"SELECT count(*) FROM {table}") == EXPECTED_COUNTS[table], (
             "row count changed; update EXPECTED_COUNTS if the seed was changed on purpose")
 
+    def test_seed_students_present(self, conn):
+        found = set(column(conn, "SELECT email FROM students WHERE email = ANY(%s)", (list(SEED_STUDENT_EMAILS),)))
+        assert found == SEED_STUDENT_EMAILS
+
+
     def test_no_duplicate_prerequisites_or_transcripts_in_seed(self, conn):
         dup_pre = conn.execute("SELECT course_id, prerequisite_course_id FROM prerequisites "
                                "GROUP BY 1, 2 HAVING count(*) > 1").fetchall()
@@ -236,11 +265,13 @@ class TestSeedPersistence:
         assert dup_pre == [] and dup_tx == []
 
     def test_every_course_has_a_description(self, conn):
-        assert scalar(conn, "SELECT count(*) FROM courses WHERE description IS NULL OR description = ''") == 0
+        # Inactive legacy courses have no description by design (see seeds/seed.py LEGACY_COURSES).
+        assert scalar(conn, "SELECT count(*) FROM courses WHERE is_active AND (description IS NULL OR description = '')") == 0
 
     def test_syllabus_chunk_counts_per_course(self, conn):
         rows = dict(conn.execute("SELECT c.code, count(s.chunk_id) FROM courses c "
-                                 "LEFT JOIN syllabus_chunks s ON s.course_id = c.course_id GROUP BY c.code").fetchall())
+                                 "LEFT JOIN syllabus_chunks s ON s.course_id = c.course_id "
+                                 "WHERE c.is_active GROUP BY c.code").fetchall())
         expected = {code: (1 if code == "MSSE 696" else 3) for code in rows}
         assert rows == expected
 
@@ -293,6 +324,9 @@ class TestAuditQueries:
         (NEARLY_DONE, "MSSE 696", {"MSSE 692"}),
     ])
     def test_prerequisite_eligibility(self, conn, email, course, expected_missing):
+        # Real users may have added transcript rows to the test accounts, so pin this account
+        # to its seed transcript for this rolled-back transaction only.
+        reset_transcript(conn, JUST_STARTED, JUST_STARTED_SEED)
         assert missing_prereqs(conn, email, course) == expected_missing
 
 
