@@ -3,11 +3,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { MessageType } from '../models/message.js';
 import { ChatService, QUERY_ENDPOINT } from './chatService.js';
 
-function makeService(response) {
+function makeService(response, { devStudentId = '' } = {}) {
   const apiClient = { post: vi.fn().mockResolvedValue(response) };
   const authService = {
     getSessionToken: vi.fn().mockResolvedValue('token-123'),
     getUserId: () => 'user-1',
+    getDevStudentId: () => devStudentId,
   };
   return { service: new ChatService(apiClient, authService), apiClient };
 }
@@ -22,6 +23,7 @@ describe('ChatService.sendQuery', () => {
       QUERY_ENDPOINT,
       { query: 'What do I need to graduate?', history: [], questionNumber: 1 },
       'token-123',
+      {},
     );
   });
 
@@ -38,6 +40,23 @@ describe('ChatService.sendQuery', () => {
       QUERY_ENDPOINT,
       { query: 'What do I need before it?', history, questionNumber: 1 },
       'token-123',
+      {},
+    );
+  });
+
+  it('sends the dev student id header in dev mode', async () => {
+    const { service, apiClient } = makeService(
+      { type: 'audit', content: {} },
+      { devStudentId: 'user_seed' },
+    );
+
+    await service.sendQuery('What do I need to graduate?');
+
+    expect(apiClient.post).toHaveBeenCalledWith(
+      QUERY_ENDPOINT,
+      { query: 'What do I need to graduate?', history: [], questionNumber: 1 },
+      'token-123',
+      { 'X-Dev-Student-Id': 'user_seed' },
     );
   });
 
@@ -70,7 +89,10 @@ describe('ChatService.sendQuery', () => {
 
   it('passes API errors through to the caller', async () => {
     const apiClient = { post: vi.fn().mockRejectedValue(new Error('boom')) };
-    const authService = { getSessionToken: async () => 't' };
+    const authService = {
+      getSessionToken: async () => 't',
+      getDevStudentId: () => '',
+    };
     const service = new ChatService(apiClient, authService);
 
     await expect(service.sendQuery('hi')).rejects.toThrow('boom');
