@@ -5,8 +5,12 @@ from __future__ import annotations
 from app.config import Settings
 from app.embeddings.embedding_provider import EmbeddingProvider
 from app.embeddings.vertex_embedding_provider import VertexEmbeddingProvider
+from app.orchestration.fake_llm_provider import FakeLLMProvider
 from app.orchestration.llm_provider import LLMProvider
 from app.orchestration.vertex_gemini_provider import VertexGeminiProvider
+
+# The scripted provider must never answer real students.
+_FAKE_LLM_ENVIRONMENTS = ('local', 'test')
 
 
 def create_llm_provider(settings: Settings) -> LLMProvider:
@@ -14,6 +18,7 @@ def create_llm_provider(settings: Settings) -> LLMProvider:
 
     Supported ``settings.llm_provider`` values:
       - ``vertex`` / ``gemini`` / ``vertex-gemini`` (default when set)
+      - ``fake``: scripted provider for e2e tests (APP_ENV local/test)
       - empty: raises so callers fail closed until configured
 
     Args:
@@ -43,9 +48,17 @@ def create_llm_provider(settings: Settings) -> LLMProvider:
             model=settings.llm_model,
         )
 
+    if name == 'fake':
+        if settings.environment.strip().lower() not in _FAKE_LLM_ENVIRONMENTS:
+            raise ValueError(
+                'LLM_PROVIDER=fake is only allowed when APP_ENV is '
+                'local or test.'
+            )
+        return FakeLLMProvider()
+
     raise ValueError(
         f'Unsupported LLM_PROVIDER={settings.llm_provider!r}. '
-        'Supported: vertex, gemini, vertex-gemini.'
+        'Supported: vertex, gemini, vertex-gemini, fake (test only).'
     )
 
 
