@@ -1,0 +1,133 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+# Cancel an in-progress run when a newer commit lands on the same branch/PR.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend tests (pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12" # matches backend/Dockerfile
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # Unit + integration tests. The DB QA suite under tests/db skips itself
+      # unless RUN_DB_TESTS=1 and DATABASE_URL are set, so no database is needed.
+      - name: Run tests
+        run: python -m pytest tests -q
+
+  database:
+    name: Database tests (Postgres + pgvector)
+    runs-on: ubuntu-latest
+    # A throwaway database that exists only for this job. It never touches Cloud SQL.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg18 # Cloud SQL runs PostgreSQL 18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: coursecompass_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/coursecompass_test
+      APP_ENV: test # seed.py refuses to run when APP_ENV is production
+      RUN_DB_TESTS: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: migrations/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      # No migration creates the extension; in Cloud SQL it is created by hand
+      # (see docs/DEPLOYMENT_GUIDE.md), so do the same here.
+      - name: Enable pgvector
+        run: psql "$DATABASE_URL" -c "CREATE EXTENSION IF NOT EXISTS vector"
+
+      - name: Run migrations
+        working-directory: migrations
+        run: |
+          npm ci
+          npx node-pg-migrate up
+
+      - name: Install backend dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Seed test data
+        run: python seeds/seed.py
+
+      # Every DB test runs inside a rolled-back transaction, so order does not matter.
+      - name: Run database tests
+        working-directory: backend
+        run: python -m pytest tests/db -v
+
+  backend-image:
+    name: Backend Docker build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Build only (no push) so a broken Dockerfile is caught before deploy.
+      - name: Build image
+        run: docker build -t coursecompass-api:ci backend
+
+  frontend:
+    name: Frontend tests and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npx vitest run
+
+      - name: Build
+        run: npm run build
