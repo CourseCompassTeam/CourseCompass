@@ -36,10 +36,14 @@ export class ChatService {
    */
   async sendQuery(query, history = [], questionNumber = 1) {
     const token = await this._authService.getSessionToken();
+    // Local backends only; production ignores this header.
+    const devStudentId = this._authService.getDevStudentId();
+    const headers = devStudentId ? { 'X-Dev-Student-Id': devStudentId } : {};
     const raw = await this._apiClient.post(
       QUERY_ENDPOINT,
       { query, history, questionNumber },
       token,
+      headers,
     );
     return createMessage({
       id: raw?.id,
