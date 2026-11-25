@@ -100,7 +100,7 @@ def test_answer_query_redirects_out_of_scope():
     )
     response = answer_query(provider, 'How do I apply for financial aid?')
     assert response.type == 'redirect'
-    assert response.content['url'] == 'https://example.com/advising'
+    assert response.content['url'] == 'https://rangerportal.regis.edu/Student/Account/Login?ReturnUrl=%2FStudent%2F'
     assert response.content['reason'] == 'financial_aid'
 
 
@@ -119,7 +119,7 @@ def test_answer_query_combines_course_and_career():
     assert response.content['courses'][0]['code'] == 'CS502'
     assert response.content['resourceName'] == 'Career Services'
     assert response.content['url'] == (
-        'https://example.com/career-services'
+        'https://www.regis.edu/academics/student-success/career-professional-development/'
     )
     assert 'careerDisclaimer' in response.content
 
@@ -166,7 +166,7 @@ def test_answer_query_sets_detailed_when_student_asks():
     assert response.content['detailLevel'] == 'detailed'
     assert response.content['scheduleChecked'] is False
     assert response.content['advisingUrl'] == (
-        'https://example.com/advising'
+        'https://rangerportal.regis.edu/Student/Account/Login?ReturnUrl=%2FStudent%2F'
     )
     assert response.content['studentInterest'] == 'software design'
 
@@ -181,7 +181,7 @@ def test_answer_query_course_includes_career_handoff():
     assert response.type == 'recommendation'
     assert response.content['courses'][0]['code'] == 'CS502'
     assert response.content['url'] == (
-        'https://example.com/career-services'
+        'https://www.regis.edu/academics/student-success/career-professional-development/'
     )
 
 
@@ -241,7 +241,7 @@ def test_instead_question_audits_even_when_history_names_a_course():
         'programName': 'Master of Science - Software Engineering',
         'leadCourseNotOfferedNextTerm': True,
         'leadCourse': {'code': 'MSSE 601', 'offeredTerms': []},
-        'advisingUrl': 'https://example.com/advising',
+        'advisingUrl': 'https://rangerportal.regis.edu/Student/Account/Login?ReturnUrl=%2FStudent%2F',
         'nextCourses': [],
     }
     response = answer_query(
@@ -256,7 +256,7 @@ def test_instead_question_audits_even_when_history_names_a_course():
     )
     assert dispatcher.dispatch.call_args.args[0] == 'audit_degree'
     assert response.type == 'audit'
-    assert response.content['advisingUrl'] == 'https://example.com/advising'
+    assert response.content['advisingUrl'] == 'https://rangerportal.regis.edu/Student/Account/Login?ReturnUrl=%2FStudent%2F'
 
 
 def test_what_is_offered_lists_the_term_not_the_history_course():
@@ -373,7 +373,7 @@ def test_internal_dump_request_is_not_phrased():
     provider.phrase_response.assert_not_called()
     assert 'conversationHistory' not in response.content['message']
     assert 'detailLevel' not in response.content['message']
-    assert 'https://example.com/advising' in response.content['message']
+    assert 'https://rangerportal.regis.edu/Student/Account/Login?ReturnUrl=%2FStudent%2F' in response.content['message']
     assert 'milestones' not in response.content
 
 

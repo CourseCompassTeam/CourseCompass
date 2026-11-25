@@ -64,7 +64,7 @@ const SAMPLE_RESPONSES = {
       },
     ],
     resourceName: 'Career Services',
-    url: 'https://example.com/career-services',
+    url: 'https://www.regis.edu/academics/student-success/career-professional-development/',
   },
   syllabus: {
     message: 'Here is a summary of the syllabus for MSSE 635 Software ' +
@@ -101,13 +101,13 @@ const SAMPLE_RESPONSES = {
       },
     ],
     advisingResourceName: 'Book an advising appointment',
-    advisingUrl: 'https://example.com/advising',
+    advisingUrl: 'https://rangerportal.regis.edu/Student/Account/Login?ReturnUrl=%2FStudent%2F',
   },
   redirect: {
     message: 'That question is outside what I can answer reliably. ' +
       'An academic advisor can help with this.',
     resourceName: 'Book an advising appointment',
-    url: 'https://example.com/advising',
+    url: 'https://rangerportal.regis.edu/Student/Account/Login?ReturnUrl=%2FStudent%2F',
   },
 };
 

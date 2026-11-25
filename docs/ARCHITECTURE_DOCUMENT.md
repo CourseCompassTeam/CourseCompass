@@ -61,39 +61,52 @@ QA-03 (Security) is a key factor because prompt injection is a widely documented
 
 ### Key structural elements
 
-- **Orchestration/agent layer**
-  - Interprets student prompt, decides which tools to call, converts output into natural language
-- **Tool Registry**
-  - Functions that lead to calling a real database query
-- **Degree audit engine**
-  - Pre-defined prerequisite/credit logic to audit student's degree
-- **Recommendation engine**
-  - Semantic search of course syllabi using pgvector based on student's interests
-- **Schedule builder + calendar export**
-  - Generates recommended course schedule and exports it
-- **Routing component**
-  - Decides when to direct a student to external resources / who to direct to
-- **Repository layer**
-  - The "middle man" between the tool calls and the actual database, where the queries live
+- **Orchestration/agent layer** (`backend/app/orchestration/`)
+  - `mock_query.answer_query` handles each `/api/v1/query` request. It sends the question and recent history to the LLM provider (Vertex AI Gemini), which chooses a tool through function calling. The tool dispatcher runs that tool, and the LLM turns the verified result into a reply. A mock path returns canned answers when no live provider is configured.
+  - `intent_router.py` and `response_assembler.py` are placeholders that raise `NotImplementedError`. They are not used by the live query path.
+- **Tool Registry and dispatcher** (`tool_catalog.py`, `tool_dispatcher.py`, `tools/mcp_tools.py`)
+  - Eight tools the LLM can call: `audit_degree`, `build_schedule`, `get_advisor_contact`, `get_career_services`, `get_course_description`, `get_next_milestones`, `list_term_offerings`, `recommend_courses`
+  - Each tool calls a service or repository method. The LLM never receives raw database access.
+- **Degree audit service** (`services/audit_service.py`)
+  - Deterministic prerequisite and credit logic. Counts completed and in-progress transcript rows, and a substitute course counts only once it is completed or in progress
+- **Course substitutions** (`services/substitution_service.py`)
+  - Lets a student propose a substitute for a required course. Equivalencies are stored in the database
+- **Course catalog and recommendations** (`services/course_catalog_service.py`)
+  - Course lookup and semantic search of syllabus chunks using pgvector, via `embeddings/` providers (Vertex AI embeddings)
+- **Schedule builder** (`scheduling/`, `api/v1/schedule.py`)
+  - Builds a draft schedule from the student's remaining requirements and offerings, and lists schedules
+  - Export only marks a schedule as exported. The backend does not integrate with Google Calendar or any other calendar service
+- **Student milestones, campus directory and advisor contacts** (`services/student_milestone_service.py`, `services/campus_directory_service.py`)
+  - Next-milestone guidance and the advisor and career-service information returned by the `get_advisor_contact` and `get_career_services` tools
+- **Transcript upload and ingestion** (`ingestion/`, `api/v1/transcript.py`, `api/v1/admin_ingest.py`)
+  - Parses student transcript PDFs and stores completed and in-progress rows. A grade must be a C or better to count as passing; C-, D and F rows are not stored as completed
+  - Admin endpoints load and refresh catalog data and record ingestion logs
+- **Student provisioning and Clerk webhooks** (`services/student_provisioning_service.py`, `api/v1/clerk_webhook.py`)
+  - Creates student records when a Clerk user signs up
+- **Authentication** (`auth/clerk_auth.py`)
+  - Verifies Clerk session tokens (JWKS). Each request is scoped to the signed-in student's own data. A dev-only `X-Dev-Student-Id` header is honored only when `APP_ENV` is `local`, `staging` or `test`
+- **Repository layer** (`repositories/`)
+  - Interfaces in `interfaces.py`, with PostgreSQL implementations (`postgres_*.py`). Domain code only calls the interfaces
 - **Course dataset**
-  - All catalog info stored in PostgreSQL
-- **Data ingestion module**
-  - Process for loading and refreshing catalog data, ingests student transcripts
-- **Decoupled frontend**
-  - User interaction with application, communicates with backend over REST
+  - Catalog, prerequisites, requirements, offerings, terms and syllabus chunks, all stored in PostgreSQL with pgvector. The schema is managed by 19 migrations in `migrations/`
+- **Decoupled frontend** (`frontend/`)
+  - React 19 with Vite. Talks to the backend over REST. Uses Clerk for sign-in, or a dev-mode user when no Clerk key is set. A mock API client can replace the backend for local work
 
 ### Integration approach
 
-- **Frontend ↔ Backend:** REST API calls
+- **Frontend ↔ Backend:** REST API calls (`/api/v1/...`) with Clerk session tokens
 - **Backend internals:** Direct function calls between layers
-- **LLM ↔ Data:** Tool calling
-- **Backend ↔ Database:** repository pattern over PostgreSQL
+- **LLM ↔ Data:** Gemini function calling. The model picks a tool, and the backend runs it
+- **Backend ↔ Database:** Repository pattern over PostgreSQL, connected through `DATABASE_URL`
+- **Clerk ↔ Backend:** Signed webhooks (Svix) create or update student records
 
 ### Deployment architecture
 
-- The application will be deployed within a mono repo, where it will be automatically shipped across two different deployments:
-  - **Frontend:** The front end will be deployed on Vercel
-  - **Backend:** The backend will be deployed on Google Cloud Run
+- The application lives in one monorepo, with two deployable parts:
+  - **Frontend:** Deployed on Vercel
+  - **Backend:** A Docker image (`backend/Dockerfile`, Python 3.12) deployed to Google Cloud Run in `us-central1`, built with Cloud Build and stored in Artifact Registry. `scripts/deploy-backend.sh` runs the build and deploy by hand. There are two services: `coursecompass-api` (production) and `coursecompass-api-dev` (development). The deploy script is not triggered automatically.
+  - **Database:** PostgreSQL with pgvector, reached through `DATABASE_URL`
+- **Continuous integration:** GitHub Actions (`.github/workflows/ci.yml`) runs backend pytest, database tests against Postgres with pgvector, Docker build, frontend Vitest and build, and Playwright end-to-end tests. CI does not deploy.
 
 ---
 
@@ -112,7 +125,8 @@ The system that students interact with directly and connects with three external
 - **MSSE Student (primary actor):** asks questions, receives plans and answers
 - **Academic Advisor:** contacted directly by the student using the contact information CourseCompass surfaces when a question is out of scope
 - **Ranger Portal:** Regis University's system; its course and prerequisite data is captured into our system, not accessed live
-- **Google Calendar:** receives the student's exported schedule
+- **Clerk:** signs students in and sends user-created webhooks to the backend
+- **Google Calendar:** Not integrated. Exporting a schedule only marks it as exported in CourseCompass
 - **University Career Resources / Job Board:** external destination the system links students to
 
 #### Key Interactions
@@ -128,31 +142,36 @@ The system that students interact with directly and connects with three external
 
 #### Components
 
-The system consists of 4 internal and 1 external component:
+The system consists of 4 internal and 3 external components:
 
 **Internal**
 
-- **UI:** This is the way users interact with the application and receive responses.
-- **API Gateway & Orchestrator:** This layer takes in the initial request and forwards it to the appropriate routing and tooling needed to complete the request.
-- **MCP Server:** This layer provides tools to be used by the LLM and interacts between the database and Gateway layers.
-- **Database:** The database layer persists our data and interacts with the MCP server to provide or store data.
+- **UI:** React single-page app (Vercel). Users sign in with Clerk and interact with the chatbot, transcript upload, substitutions and schedule builder.
+- **API Gateway & Orchestrator:** FastAPI service that authenticates the request, runs the LLM tool-calling loop and returns the reply. Also hosts the transcript, schedule and Clerk webhook endpoints (Cloud Run).
+- **Tool layer (MCP-style tools):** The tool catalog and dispatcher that the LLM calls. Each tool runs a service or repository method. The tools are MCP-compatible in shape, but they run in-process and are not a separate MCP server.
+- **Database:** PostgreSQL with pgvector. Stores the catalog, student records, transcripts, substitutions, schedules and syllabus embeddings.
 
 **External**
 
-- **LLM Provider:** The system uses an external LLM provider, and we will interact with its API using the Gateway/orchestration layer.
+- **LLM Provider:** Vertex AI Gemini (`gemini-2.5-flash` by default), called through function calling.
+- **Embedding Provider:** Vertex AI embeddings (`gemini-embedding-001`), used for syllabus search.
+- **Clerk:** Authentication and user management. Sends `user.created` webhooks to the backend.
 
 #### Technology Choice
 
-- **React:** This is the front-end framework that will be used for our system
-- **Python:** This language will support our backend systems.
-- **Fast API:** This framework will be used to build out our orchestration and MCP server layers.
+- **React 19 with Vite:** Front-end framework and build tool, with Vitest and Playwright for tests
+- **Python 3.12 (Docker image):** Backend language
+- **FastAPI:** Backend API framework, serving the orchestration and tool layers
+- **PostgreSQL with pgvector:** Relational store and vector search
+- **Clerk:** Sign-in and session tokens
+- **Google Cloud:** Cloud Run (API), Cloud Build and Artifact Registry (images), Vertex AI (LLM and embeddings)
 
 #### Communication protocols
 
-- There will be three different protocols used within the system:
-  - **JSON/HTTPS:** This is the protocol used between our UI → API Gateway layer and API Gateway → LLM Provider layer
-  - **JSON/RPC:** This is the communication protocol between our MCP Server → API Gateway layer
-  - **PostgreSQL Wire Protocol:** This is the protocol used to transfer data between our MCP Server → Database
+- Three protocols are used within the system:
+  - **JSON/HTTPS:** UI → API (REST under `/api/v1`), and API → Vertex AI
+  - **Function calling:** The LLM selects a tool, and the backend runs it in-process. There is no JSON-RPC server
+  - **PostgreSQL Wire Protocol:** Backend → database
 
 #### Audience
 
@@ -164,7 +183,9 @@ The system consists of 4 internal and 1 external component:
 
 #### Orchestration / agent layer
 
-This layer handles every student query and makes sure the LLM never touches student or course data directly. The intent router figures out what the prompt from the student is asking for. The tool dispatcher then calls the one matching function for that request and gets back a verified result. The response assembler turns that result into a natural language sounding reply, without adding anything the tool didn't return.
+This layer handles every student query and keeps the LLM away from raw student or course data. `answer_query` sends the question and recent history to the LLM with the tool definitions. The LLM chooses one tool, the tool dispatcher runs it with the signed-in student's ID, and the verified result goes back to the LLM so it can write the reply. Out-of-scope questions are sent to advisor or career-service information rather than answered directly.
+
+The intent router and response assembler exist as interfaces only. They are not used at runtime, and the LLM's function choice replaces the intent router.
 
 #### Repository / data access layer
 
@@ -273,14 +294,16 @@ When a developer needs to change the AI vendor from Claude to OpenAI due to cost
 
 - **Cloud Provider**
   - **Vercel:** Even though our team has no experience with Platform as a Service (PaaS), it offers a free tier that will be sufficient to host our frontend. It also provides automatic builds and deployments from our repo, which will help ease the workload on our team
-  - **Cloud GCP:** Our team wants hands-on experience with industry cloud tools, and GCP is our platform of choice. Its wide range of services and free student tier are enough to support our software needs.
+  - **Cloud GCP:** Our team wants hands-on experience with industry cloud tools, and GCP is our platform of choice. Cloud Run hosts the API (production and development services), Cloud Build and Artifact Registry build the images, and Vertex AI provides the LLM and embeddings.
+- **Identity:** Clerk for sign-in and session tokens, verified by the backend.
+- **Testing and CI:** pytest, Vitest, Playwright, and GitHub Actions.
 
 ### Integration technologies (REST, GraphQL, message queues, gRPC)
 
 - **REST**
   - We will use REST to interface with our APIs. It is the communication protocol that our team has the most experience building APIs with.
-- **JSON-RPC 2.0**
-  - This will be used to communicate with our MCP/Orchestrator layer between our tools and AI API. This is the standard way to communicate within this type of architecture.
+- **Function calling (Gemini)**
+  - The LLM calls the tools through Vertex AI function calling. The backend runs the tool in-process. We chose this over a JSON-RPC server to keep deployment to one service.
 - **PostgreSQL Wire Protocol**
   - This is the standard to use between our persistence layer and our backend business layer.
 

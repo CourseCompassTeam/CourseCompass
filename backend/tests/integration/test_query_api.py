@@ -65,7 +65,7 @@ def test_course_description_returns_recommendation_card(client, llm):
     assert 'distributed software system' in course['description']
     assert course['syllabusText']
     assert body['content']['url'] == (
-        'https://example.com/career-services'
+        'https://www.regis.edu/academics/student-success/career-professional-development/'
     )
 
 
@@ -178,7 +178,7 @@ def test_out_of_scope_returns_redirect(client, llm):
     assert response.status_code == 200
     body = response.json()
     assert body['type'] == 'redirect'
-    assert body['content']['url'] == 'https://example.com/advising'
+    assert body['content']['url'] == 'https://rangerportal.regis.edu/Student/Account/Login?ReturnUrl=%2FStudent%2F'
 
 
 def test_internal_dump_request_is_refused(client, llm):

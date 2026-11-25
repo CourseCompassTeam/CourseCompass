@@ -139,8 +139,8 @@ TRANSCRIPTS = {
 
 # (name, email, contact_type, booking_url). Placeholders, not real contacts.
 CONTACTS = [
-    ("Test Advisor", "advisor@example.edu", "advisor", "https://example.edu/book-advisor"),
-    ("Test Career Services", "careers@example.edu", "career_services", "https://example.edu/careers"),
+    ("Test Advisor", "advisor@example.edu", "advisor", "https://rangerportal.regis.edu/Student/Account/Login?ReturnUrl=%2FStudent%2F"),
+    ("Test Career Services", "careers@example.edu", "career_services", "https://www.regis.edu/academics/student-success/career-professional-development/"),
 ]
 
 # (credit_min, credit_max, label, next_actions). Brackets from the team's design.
