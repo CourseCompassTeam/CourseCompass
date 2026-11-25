@@ -379,7 +379,7 @@ def print_counts(cur):
     """Prints row counts so the run can be checked at a glance."""
     for table in ("programs", "courses", "requirements", "prerequisites", "students",
                   "transcript_entries", "advisor_contacts", "milestones", "course_offerings",
-		  "syllabus_chunks", "terms", "course_equivalencies"):
+		  "syllabus_chunks", "terms", "course_equivalencies", "student_substitutions"):
         cur.execute(f"SELECT COUNT(*) FROM {table}")
         print(f"  {table}: {cur.fetchone()[0]}")
 

@@ -87,6 +87,8 @@ EXPECTED_INDEXES = {
     "course_offerings_course_id_index", "idx_syllabus_chunks_embedding",
     "unique_course_term", "unique_term_course", "unique_schedule_term_order",
     "unique_course_chunk_index",
+    "course_equivalencies_replaces_course_id_index", "unique_legacy_replaces",
+    "student_substitutions_substitute_course_id_index", "unique_student_requirement",
 }
 
 # Counts for tables that only the seed writes. students and transcript_entries also
@@ -95,6 +97,7 @@ EXPECTED_COUNTS = {
     "programs": 1, "courses": 15, "requirements": 12, "prerequisites": 25,
     "advisor_contacts": 2, "milestones": 3, "course_offerings": 15,
     "syllabus_chunks": 34, "terms": 4, "course_equivalencies": 3,
+    "student_substitutions": 0,
 }
 
 SEED_STUDENT_EMAILS = {"nearly.done@example.edu", "just.started@example.edu"}
@@ -240,7 +243,8 @@ class TestMigrationRecords:
 
     def test_key_migrations_present(self, conn):
         names = " ".join(column(conn, "SELECT name FROM pgmigrations"))
-        for fragment in ("create-programs-table", "create-terms-table", "make-syllabus-embedding-nullable"):
+        for fragment in ("create-programs-table", "create-terms-table", "make-syllabus-embedding-nullable", 
+                         "create-course-equivalencies"):
             assert fragment in names
 
 
