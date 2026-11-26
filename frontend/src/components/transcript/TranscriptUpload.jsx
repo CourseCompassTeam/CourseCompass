@@ -2,6 +2,7 @@ import { createContext, useContext, useId, useRef, useState } from 'react';
 
 import SubstitutionDialog from './SubstitutionDialog.jsx';
 import {
+  clearedSubstitutionsLabel,
   courseCountLabel,
   formatCourseStatus,
   getUploadErrorHint,
@@ -276,8 +277,7 @@ function UploadResult({ result, onDone, onAgain, onMatch }) {
       {clearedSubstitutions.length > 0 && (
         <div className="callout callout--warning" role="note">
           <p className="callout__title">
-            {courseCountLabel(clearedSubstitutions.length)} of your
-            substitutions no longer apply.
+            {clearedSubstitutionsLabel(clearedSubstitutions.length)}
           </p>
           <p>
             {clearedSubstitutions

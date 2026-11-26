@@ -17,11 +17,12 @@ from app.repositories.row_utils import normalize_code
 
 _LOG = logging.getLogger(__name__)
 
+# A grade must be a C or better to count as passing and fulfil a requirement.
+# C-, D and F grades are not passing, so they are not stored as completed.
 _COMPLETED_GRADES = {
-    'A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-',
-    'D+', 'D', 'D-', 'P', 'CR',
+    'A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'P', 'CR',
 }
-_SKIP_GRADES = {'F', 'W', 'I', 'NP', 'NC'}
+_SKIP_GRADES = {'C-', 'D+', 'D', 'D-', 'F', 'W', 'I', 'NP', 'NC'}
 
 
 def status_for_grade(grade: str) -> str | None:

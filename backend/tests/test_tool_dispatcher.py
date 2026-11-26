@@ -24,12 +24,12 @@ class _FakeDirectory:
             return [{
                 'name': 'Career Services',
                 'email': 'career@example.com',
-                'booking_url': 'https://example.com/career-services',
+                'booking_url': 'https://www.regis.edu/academics/student-success/career-professional-development/',
             }]
         return [{
             'name': 'Advising',
             'email': 'advise@example.com',
-            'booking_url': 'https://example.com/advising',
+            'booking_url': 'https://rangerportal.regis.edu/Student/Account/Login?ReturnUrl=%2FStudent%2F',
         }]
 
 

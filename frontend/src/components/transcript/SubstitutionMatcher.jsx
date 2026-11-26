@@ -13,15 +13,18 @@ const BIN = 'bin';
  *   courses: Array<{code: string, title: string, credits: number}>,
  *   initialAssignments?: Record<string, string>,
  *   onSave?: (assignments: Record<string, string>) => void,
+ *   isSaving?: boolean,
  * }} props
  * `courses` are the transcript courses not directly applied to a requirement.
  * `initialAssignments` maps requirement code to course code.
+ * `isSaving` disables Reset and Save while the parent saves.
  */
 export default function SubstitutionMatcher({
   requirements,
   courses,
   initialAssignments = {},
   onSave,
+  isSaving = false,
 }) {
   const [assignments, setAssignments] = useState(initialAssignments);
   const [binned, setBinned] = useState([]);
@@ -154,6 +157,7 @@ export default function SubstitutionMatcher({
         <button
           type="button"
           className="button button--secondary"
+          disabled={isSaving}
           onClick={() => {
             setAssignments(initialAssignments);
             setBinned([]);
@@ -164,9 +168,10 @@ export default function SubstitutionMatcher({
         <button
           type="button"
           className="button"
+          disabled={isSaving}
           onClick={() => onSave?.(assignments)}
         >
-          Save substitutions
+          {isSaving ? 'Saving…' : 'Save substitutions'}
         </button>
       </div>
     </section>

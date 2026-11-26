@@ -46,18 +46,22 @@ EMBEDDING_MODEL="${EMBEDDING_MODEL:-gemini-embedding-001}"
 EMBEDDING_DIMENSIONS="${EMBEDDING_DIMENSIONS:-768}"
 GCP_LOCATION="${GCP_LOCATION:-${REGION}}"
 
+# --update-env-vars keeps DATABASE_URL, Clerk, CORS, and Cloud SQL.
+# --set-env-vars would delete those and break production.
+APP_ENV="${APP_ENV:-production}"
+
 gcloud run deploy "${SERVICE_NAME}" \
-  --image="${IMAGE}" \
-  --region="${REGION}" \
-  --project="${PROJECT_ID}" \
-  --platform=managed \
-  --allow-unauthenticated \
-  --port=8080 \
-  --memory=512Mi \
-  --cpu=1 \
-  --min-instances=0 \
-  --max-instances=3 \
-  --set-env-vars="APP_NAME=${SERVICE_NAME},APP_ENV=staging,LLM_PROVIDER=${LLM_PROVIDER},LLM_MODEL=${LLM_MODEL},EMBEDDING_MODEL=${EMBEDDING_MODEL},EMBEDDING_DIMENSIONS=${EMBEDDING_DIMENSIONS},GCP_PROJECT_ID=${PROJECT_ID},GCP_LOCATION=${GCP_LOCATION}"
+    --image="${IMAGE}" \
+    --region="${REGION}" \
+    --project="${PROJECT_ID}" \
+    --platform=managed \
+    --allow-unauthenticated \
+    --port=8080 \
+    --memory=512Mi \
+    --cpu=1 \
+    --min-instances=0 \
+    --max-instances=3 \
+    --update-env-vars="APP_NAME=${SERVICE_NAME},APP_ENV=${APP_ENV},LLM_PROVIDER=${LLM_PROVIDER},LLM_MODEL=${LLM_MODEL},EMBEDDING_MODEL=${EMBEDDING_MODEL},EMBEDDING_DIMENSIONS=${EMBEDDING_DIMENSIONS},GCP_PROJECT_ID=${PROJECT_ID},GCP_LOCATION=${GCP_LOCATION}"
 
 URL="$(gcloud run services describe "${SERVICE_NAME}" \
   --region="${REGION}" \

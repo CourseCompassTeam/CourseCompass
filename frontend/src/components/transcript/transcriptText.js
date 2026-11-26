@@ -43,3 +43,12 @@ export function formatCourseStatus(status) {
 export function courseCountLabel(count) {
   return `${count} ${count === 1 ? 'course' : 'courses'}`;
 }
+
+/**
+ * @param {number} count Number of substitutions an upload cleared.
+ * @returns {string} For example '1 of your substitutions no longer applies.'
+ */
+export function clearedSubstitutionsLabel(count) {
+  return `${count} of your substitutions no longer `
+    + `${count === 1 ? 'applies' : 'apply'}.`;
+}

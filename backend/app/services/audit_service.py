@@ -51,6 +51,46 @@ def _with_follow_on(course: str, prerequisites: list[str]) -> list[str]:
     return required
 
 
+def _applied_credits(
+    completed: list[dict],
+    requirement_matches: list[dict],
+    substitution_rows: list[dict],
+    completed_codes: set[str],
+) -> int:
+    """Credits from completed courses that fill a required slot.
+
+    A directly completed required course counts for its own credits. A
+    counted substitute counts for its credits once completed; a substitute
+    still in progress does not. Completed courses that fill no requirement
+    are left out.
+
+    Args:
+        completed: Completed transcript rows with credits.
+        requirement_matches: Per-requirement direct/substitute/missing status.
+        substitution_rows: Declared substitutions with ``counted`` set.
+        completed_codes: Codes of completed transcript rows.
+
+    Returns:
+        Total applied credits.
+    """
+    credits_by_code = {
+        row.get('code'): int(row.get('credits') or 0)
+        for row in completed
+        if row.get('code')
+    }
+    applied = sum(
+        credits_by_code.get(match['code'], 0)
+        for match in requirement_matches
+        if match['status'] == 'direct'
+    )
+    applied += sum(
+        credits_by_code.get(row['substituteCode'], 0)
+        for row in substitution_rows
+        if row['counted'] and row['substituteCode'] in completed_codes
+    )
+    return applied
+
+
 def _non_required_transcript_courses(
     completed: list[dict],
     in_progress: list[dict],
@@ -264,8 +304,8 @@ class AuditService:
         transcript_courses = _non_required_transcript_courses(
             completed, in_progress, required_codes
         )
-        credits_completed = sum(
-            int(row.get('credits') or 0) for row in completed
+        credits_completed = _applied_credits(
+            completed, requirement_matches, substitution_rows, completed_codes
         )
         credits_required = int(
             program.get('total_credits_required') or 0

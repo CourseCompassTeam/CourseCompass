@@ -14,7 +14,28 @@ describe('toBlocks', () => {
     const text = 'The weekly topics are:\n*   Week 1: Intro\n*   Week 2: Patterns';
     expect(toBlocks(text)).toEqual([
       { kind: 'paragraph', text: 'The weekly topics are:' },
-      { kind: 'list', items: ['Week 1: Intro', 'Week 2: Patterns'] },
+      { kind: 'list', ordered: false, items: ['Week 1: Intro', 'Week 2: Patterns'] },
+    ]);
+  });
+
+  it('turns "1." lines into a numbered list', () => {
+    const text = 'Still required:\n1. MSSE 692 Practicum I\n2. MSSE 696 Practicum II';
+    expect(toBlocks(text)).toEqual([
+      { kind: 'paragraph', text: 'Still required:' },
+      {
+        kind: 'list',
+        ordered: true,
+        start: 1,
+        items: ['MSSE 692 Practicum I', 'MSSE 696 Practicum II'],
+      },
+    ]);
+  });
+
+  it('keeps the first number and splits numbered from bulleted lines', () => {
+    const text = '3) Third\n4) Fourth\n* Note';
+    expect(toBlocks(text)).toEqual([
+      { kind: 'list', ordered: true, start: 3, items: ['Third', 'Fourth'] },
+      { kind: 'list', ordered: false, items: ['Note'] },
     ]);
   });
 

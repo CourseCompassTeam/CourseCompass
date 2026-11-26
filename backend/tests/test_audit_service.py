@@ -538,3 +538,56 @@ def test_transcript_courses_exclude_required_ones():
         student={'student_id': 's1', 'program_id': 'p1'},
     ).audit('s1')
     assert [c['code'] for c in result['transcriptCourses']] == ['MSSE 610']
+
+
+def test_credits_completed_counts_only_applied_courses():
+    """A completed course that fills no requirement adds no credits."""
+    result = _service(
+        completed=[
+            {'code': 'MSSE 601', 'credits': 3},
+            {'code': 'MSSE 610', 'credits': 3},
+            {'code': 'MSSE 999', 'credits': 3},
+        ],
+        student={'student_id': 's1', 'program_id': 'p1'},
+    ).audit('s1')
+    assert result['creditsCompleted'] == 3
+    assert result['creditsRemaining'] == 33
+
+
+def test_counted_substitute_adds_its_credits():
+    """A completed substitute that fills a requirement is applied."""
+    result = _service(
+        completed=[
+            {'code': 'MSSE 601', 'credits': 3},
+            {'code': 'MSSE 610', 'credits': 3},
+        ],
+        student={'student_id': 's1', 'program_id': 'p1'},
+        substitutions=[_declared('MSSE 635', 'MSSE 610')],
+    ).audit('s1')
+    assert result['creditsCompleted'] == 6
+
+
+def test_uncounted_substitute_adds_no_credits():
+    """A substitute that does not count is not applied."""
+    result = _service(
+        completed=[
+            {'code': 'MSSE 601', 'credits': 3},
+            {'code': 'MSSE 610', 'credits': 3},
+        ],
+        student={'student_id': 's1', 'program_id': 'p1'},
+        substitutions=[_declared('MSSE 601', 'MSSE 610')],
+    ).audit('s1')
+    assert result['substitutions'][0]['counted'] is False
+    assert result['creditsCompleted'] == 3
+
+
+def test_in_progress_substitute_adds_no_credits_yet():
+    """A substitute still in progress fills the slot but earns no credits yet."""
+    result = _service(
+        completed=[{'code': 'MSSE 601', 'credits': 3}],
+        in_progress=[{'code': 'MSSE 610', 'credits': 3}],
+        student={'student_id': 's1', 'program_id': 'p1'},
+        substitutions=[_declared('MSSE 635', 'MSSE 610')],
+    ).audit('s1')
+    assert result['substitutions'][0]['counted'] is True
+    assert result['creditsCompleted'] == 3
