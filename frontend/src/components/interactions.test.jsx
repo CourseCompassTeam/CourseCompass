@@ -127,6 +127,24 @@ describe('SubstitutionMatcher interactions', () => {
 
     expect(onSave).toHaveBeenCalledWith({ 'MSSE 635': 'MSES 602' });
   });
+
+  it('disables Reset and Save while saving', async () => {
+    const onSave = vi.fn();
+    render(
+      <SubstitutionMatcher
+        requirements={requirements}
+        courses={courses}
+        onSave={onSave}
+        isSaving
+      />,
+    );
+
+    const save = screen.getByRole('button', { name: 'Saving…' });
+    expect(save.disabled).toBe(true);
+    expect(screen.getByRole('button', { name: 'Reset' }).disabled).toBe(true);
+    await userEvent.click(save);
+    expect(onSave).not.toHaveBeenCalled();
+  });
 });
 
 describe('TranscriptUpload interactions', () => {
