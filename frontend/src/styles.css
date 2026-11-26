@@ -596,7 +596,8 @@ p {
   gap: 0.6rem;
 }
 
-.formatted-text ul {
+.formatted-text ul,
+.formatted-text ol {
   margin: 0;
   padding-left: 1.25rem;
 }

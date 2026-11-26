@@ -23,7 +23,7 @@ describe('toBlocks', () => {
 
     expect(blocks).toEqual([
       { kind: 'paragraph', text: 'Take these next.' },
-      { kind: 'list', items: ['MSSE 692', 'MSSE 696'] },
+      { kind: 'list', ordered: false, items: ['MSSE 692', 'MSSE 696'] },
       { kind: 'paragraph', text: 'Good luck.' },
     ]);
   });
@@ -45,6 +45,20 @@ describe('FormattedText', () => {
     expect(html).toContain('<strong>Required:</strong>');
     expect(html).toContain('<li>first</li>');
     expect(html).toContain('<li>second</li>');
+  });
+
+  it('renders numbered lines as an ordered list', () => {
+    const html = renderToStaticMarkup(
+      <FormattedText text={'1. MSSE 692\n2. MSSE 696'} />,
+    );
+
+    expect(html).toContain('<ol><li>MSSE 692</li><li>MSSE 696</li></ol>');
+  });
+
+  it('keeps the starting number when a list does not start at 1', () => {
+    const html = renderToStaticMarkup(<FormattedText text={'2. MSSE 696'} />);
+
+    expect(html).toContain('<ol start="2">');
   });
 });
 
