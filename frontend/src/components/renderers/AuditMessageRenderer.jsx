@@ -46,7 +46,6 @@ export default function AuditMessageRenderer({ message }) {
   return (
     <>
       <MessageBubble from="assistant" timestamp={message.timestamp}>
-        {!hasNumbers && text && <FormattedText text={text} />}
         {hasNumbers && <div className="audit">
           <p className="audit__eyebrow">
             Degree audit
@@ -195,12 +194,8 @@ export default function AuditMessageRenderer({ message }) {
           </a>
         )}
 
-        {hasNumbers && text && (
-          <details className="explanation">
-            <summary>Show full explanation</summary>
-            <FormattedText text={text} />
-          </details>
-        )}
+        {/* Always visible: "what should I take next?" is answered here. */}
+        {text && <FormattedText text={text} />}
       </MessageBubble>
 
       {/* No completed credits usually means no transcript is on file yet. */}

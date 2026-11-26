@@ -86,7 +86,7 @@ export default function SubstitutionDialog({
   }
 
   async function save(assignments) {
-    if (!review) return;
+    if (!review || isSaving) return;
     const { removals, declarations } = diffSubstitutions(
       review.substitutions,
       assignments,
@@ -168,6 +168,7 @@ export default function SubstitutionDialog({
             courses={review.courses}
             initialAssignments={initialAssignments}
             onSave={save}
+            isSaving={isSaving}
           />
         )}
       </div>

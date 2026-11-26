@@ -938,16 +938,17 @@ p {
 /* ---------- Input ---------- */
 
 .chat-input {
-  display: flex;
-  gap: 0.5rem;
-  align-items: flex-end;
-  padding: 0.75rem var(--gutter) 1rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 0.5rem;
+  row-gap: 0.25rem;
+  align-items: end;
+  padding: 0.75rem var(--gutter) 0.6rem;
   border-top: 1px solid var(--color-border);
   background: var(--color-bg);
 }
 
 .chat-input__text {
-  flex: 1;
   min-height: 2.75rem;
   max-height: 10rem;
   padding: 0.65rem 0.85rem;
@@ -966,6 +967,20 @@ p {
 
 .chat-input .button {
   min-height: 2.75rem;
+}
+
+.chat-input__count {
+  grid-column: 1;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.chat-input__count--low {
+  color: var(--color-text);
+  font-weight: 600;
 }
 
 @media (max-width: 480px) {
