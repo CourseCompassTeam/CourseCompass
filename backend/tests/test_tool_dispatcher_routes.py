@@ -82,7 +82,7 @@ def test_unknown_intent_returns_advising_redirect(dispatcher):
     result = dispatcher.dispatch('launch_rocket', 'stu-1', {})
 
     assert result['reason'] == 'unknown_tool:launch_rocket'
-    assert result['url'] == 'https://example.com/advising'
+    assert result['url'] == 'https://rangerportal.regis.edu/Student/Account/Login?ReturnUrl=%2FStudent%2F'
 
 
 def test_stub_interfaces_are_not_implemented():

@@ -216,6 +216,19 @@ The endpoints are limited to 10 requests/minute per API key. This rate is enough
 | name | VARCHAR(150) | NOT NULL |
 | email | VARCHAR(250) | NOT NULL |
 
+#### Tables added after the original design
+
+These tables were added by later migrations in `migrations/migrations/`. The lists below cover the main fields only.
+
+- **terms:** `term_id`, `term_name`, `start_date`, `end_date`. Academic terms used by course offerings and schedules
+- **course_offerings:** links a `course_id` to a term for scheduling
+- **milestones:** `milestone_id`, `credit_min`, `credit_max`, `label`, `next_actions` (text array). Drives the next-milestone guidance
+- **course_equivalencies:** `legacy_course_id` and `replaces_course_id`, both referencing `courses`. A legacy course counts as the current course it replaced. Rows come from the seed script or are inserted by hand. Each pair is unique, and a course cannot be its own equivalent
+- **student_substitutions:** `substitution_id`, `student_id`, `requirement_course_id`, `substitute_course_id`, `source`, `created_at`. A student's proposed substitute for a required course. A substitute counts toward the audit only once it is completed or in progress
+- **data_ingestion_logs:** records each catalog or transcript ingestion run from the admin ingest endpoints
+
+Transcript grades: a row is stored as `completed` only for a C or better (or P/CR). C-, D and F rows are not stored as completed, so they cannot fulfil a requirement.
+
 ### Indexes
 
 - `idx_transcript_student_id ON transcript_entries(student_id)`: the primary access pattern is "fetch all records for a student" (credit audit, prereq check); this is the single most frequently hit index
@@ -368,7 +381,8 @@ Negative:
   - **Frontend:** Vercel deployment pipeline
     - Vercel can connect directly to our GitHub repo and automatically build and deploy the frontend every time code is pushed to the main branch
   - **Backend:** Manual deployment
-    - Due to the limited time constraint, manual deployment will be the quickest way to deliver our code. We will value our time on development over setting up an additional backend pipeline.
+    - `scripts/deploy-backend.sh` builds the image with Cloud Build and deploys it to Cloud Run. It is run by hand, against either the production service (`coursecompass-api`) or the development service (`coursecompass-api-dev`), selected with `SERVICE_NAME`.
+  - **Continuous integration:** GitHub Actions (`.github/workflows/ci.yml`) runs backend pytest, database tests, the Docker build, frontend Vitest and build, and Playwright end-to-end tests. Pull requests into `dev` require these checks to pass. CI does not deploy.
 
 ---
 
@@ -384,6 +398,7 @@ Negative:
 
 - **MCPTools**
   - The MCPTools class is the directory for all the tools the LLM provider can use. It interacts with the classes below, using the services and repositories to gather the needed data and process it through our business rules.
+  - Tools: `audit_degree`, `get_course_description`, `list_term_offerings`, `recommend_courses`, `build_schedule`, `get_advisor_contact`, `get_career_services`, `get_next_milestones`. The tool definitions the LLM sees are in `orchestration/tool_catalog.py`.
 - **AuditService**
   - The AuditService will check a student's progress and determine whether on track within their degree. It will interact with the IStudentAuditRepository and CourseCatalogService to receive the information needed to audit degrees.
 - **IStudentAuditRepository**

@@ -28,12 +28,12 @@ _AUDIT_RESULT = {
 
 _REDIRECT_RESULT = {
     'resourceName': 'Book an advising appointment',
-    'url': 'https://example.com/advising',
+    'url': 'https://rangerportal.regis.edu/Student/Account/Login?ReturnUrl=%2FStudent%2F',
 }
 
 _CAREER_REDIRECT = {
     'resourceName': 'Career Services',
-    'url': 'https://example.com/career-services',
+    'url': 'https://www.regis.edu/academics/student-success/career-professional-development/',
 }
 
 _SAMPLE_COURSES = [

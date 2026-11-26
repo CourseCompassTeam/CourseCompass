@@ -72,6 +72,6 @@ class ToolDispatcher:
             )
         return {
             'resourceName': 'Book an advising appointment',
-            'url': 'https://example.com/advising',
+            'url': 'https://rangerportal.regis.edu/Student/Account/Login?ReturnUrl=%2FStudent%2F',
             'reason': f'unknown_tool:{intent}',
         }
