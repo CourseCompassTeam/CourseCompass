@@ -3,12 +3,15 @@
 // (never raw HTML), so reply text can't inject markup.
 
 const BULLET = /^\s*(?:[*•-])\s+/;
+// "1. Item" or "1) Item".
+const NUMBERED = /^\s*(\d+)[.)]\s+/;
 
 /**
  * Splits text into paragraph and list blocks.
  * @param {string} text The reply text.
  * @returns {Array<{kind: 'paragraph', text: string} |
- *     {kind: 'list', items: string[]}>}
+ *     {kind: 'list', ordered: boolean, start?: number, items: string[]}>}
+ *     start is the first number of an ordered list.
  */
 export function toBlocks(text) {
   const blocks = [];
@@ -26,13 +29,17 @@ export function toBlocks(text) {
       if (!line) {
         continue;
       }
-      if (BULLET.test(line)) {
+      const number = NUMBERED.exec(line);
+      if (number || BULLET.test(line)) {
         flushParagraph();
-        if (!list) {
-          list = { kind: 'list', items: [] };
+        const ordered = Boolean(number);
+        if (!list || list.ordered !== ordered) {
+          list = ordered
+            ? { kind: 'list', ordered, start: Number(number[1]), items: [] }
+            : { kind: 'list', ordered, items: [] };
           blocks.push(list);
         }
-        list.items.push(line.replace(BULLET, ''));
+        list.items.push(line.replace(ordered ? NUMBERED : BULLET, ''));
       } else {
         list = null;
         paragraph.push(line);
@@ -56,17 +63,21 @@ function Inline({ text }) {
 export default function FormattedText({ text }) {
   return (
     <div className="formatted-text">
-      {toBlocks(text).map((block, index) =>
-        block.kind === 'list' ? (
-          <ul key={index}>
-            {block.items.map((item, itemIndex) => (
-              <li key={itemIndex}><Inline text={item} /></li>
-            ))}
-          </ul>
+      {toBlocks(text).map((block, index) => {
+        if (block.kind !== 'list') {
+          return <p key={index}><Inline text={block.text} /></p>;
+        }
+        const items = block.items.map((item, itemIndex) => (
+          <li key={itemIndex}><Inline text={item} /></li>
+        ));
+        return block.ordered ? (
+          <ol key={index} start={block.start === 1 ? undefined : block.start}>
+            {items}
+          </ol>
         ) : (
-          <p key={index}><Inline text={block.text} /></p>
-        ),
-      )}
+          <ul key={index}>{items}</ul>
+        );
+      })}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
 import { MessageType } from '../../models/message.js';
+import AuditMessageRenderer from './AuditMessageRenderer.jsx';
 import ErrorMessageRenderer from './ErrorMessageRenderer.jsx';
 import FormattedText, { toBlocks } from './FormattedText.jsx';
 import MessageBubble from './MessageBubble.jsx';
@@ -22,7 +23,7 @@ describe('toBlocks', () => {
 
     expect(blocks).toEqual([
       { kind: 'paragraph', text: 'Take these next.' },
-      { kind: 'list', items: ['MSSE 692', 'MSSE 696'] },
+      { kind: 'list', ordered: false, items: ['MSSE 692', 'MSSE 696'] },
       { kind: 'paragraph', text: 'Good luck.' },
     ]);
   });
@@ -44,6 +45,20 @@ describe('FormattedText', () => {
     expect(html).toContain('<strong>Required:</strong>');
     expect(html).toContain('<li>first</li>');
     expect(html).toContain('<li>second</li>');
+  });
+
+  it('renders numbered lines as an ordered list', () => {
+    const html = renderToStaticMarkup(
+      <FormattedText text={'1. MSSE 692\n2. MSSE 696'} />,
+    );
+
+    expect(html).toContain('<ol><li>MSSE 692</li><li>MSSE 696</li></ol>');
+  });
+
+  it('keeps the starting number when a list does not start at 1', () => {
+    const html = renderToStaticMarkup(<FormattedText text={'2. MSSE 696'} />);
+
+    expect(html).toContain('<ol start="2">');
   });
 });
 
@@ -139,6 +154,40 @@ describe('MessageBubble and message renderers', () => {
     expect(html).toContain('Ask financial aid.');
     expect(html).toContain('href="https://example.edu/aid"');
     expect(html).toContain('Financial aid');
+  });
+
+  it('shows the audit card first, then the reply without collapsing it', () => {
+    const html = renderToStaticMarkup(
+      <AuditMessageRenderer
+        message={{
+          timestamp,
+          content: {
+            creditsCompleted: 30,
+            creditsRemaining: 6,
+            missingCourses: ['MSSE 692'],
+            message: 'You can take MSSE 692 next term.',
+          },
+        }}
+      />,
+    );
+
+    expect(html).toContain('Degree audit');
+    expect(html).toContain('You can take MSSE 692 next term.');
+    expect(html.indexOf('Degree audit')).toBeLessThan(
+      html.indexOf('You can take MSSE 692 next term.'),
+    );
+    expect(html).not.toContain('<details');
+  });
+
+  it('shows only the reply when the audit has no numbers', () => {
+    const html = renderToStaticMarkup(
+      <AuditMessageRenderer
+        message={{ timestamp, content: { message: 'No audit data yet.' } }}
+      />,
+    );
+
+    expect(html).toContain('No audit data yet.');
+    expect(html).not.toContain('Degree audit');
   });
 
   it('uses the error renderer for unknown message types', () => {

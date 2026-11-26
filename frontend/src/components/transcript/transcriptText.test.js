@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { getErrorHint } from '../renderers/errorHints.js';
 import {
+  clearedSubstitutionsLabel,
   courseCountLabel,
   formatCourseStatus,
   getUploadErrorHint,
@@ -38,5 +39,14 @@ describe('courseCountLabel', () => {
     [3, '3 courses'],
   ])('labels %i as "%s"', (count, label) => {
     expect(courseCountLabel(count)).toBe(label);
+  });
+});
+
+describe('clearedSubstitutionsLabel', () => {
+  it.each([
+    [1, '1 of your substitutions no longer applies.'],
+    [2, '2 of your substitutions no longer apply.'],
+  ])('labels %i as "%s"', (count, label) => {
+    expect(clearedSubstitutionsLabel(count)).toBe(label);
   });
 });

@@ -4,7 +4,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import ChatInput from './ChatInput.jsx';
+import ChatInput, { MAX_QUERY_LENGTH } from './ChatInput.jsx';
 import { ScheduleButton } from './schedule/ScheduleDialog.jsx';
 import SubstitutionMatcher from './transcript/SubstitutionMatcher.jsx';
 import TranscriptUploadProvider, {
@@ -61,6 +61,30 @@ describe('ChatInput interactions', () => {
     await userEvent.type(screen.getByPlaceholderText('Ask a question…'), 'again');
     expect(screen.getByRole('button', { name: 'Send' }).disabled).toBe(true);
   });
+
+  it('counts typed characters and how many are left', async () => {
+    render(<ChatInput onSubmit={vi.fn()} disabled={false} />);
+
+    expect(screen.getByText('0/500')).toBeTruthy();
+    await userEvent.type(screen.getByPlaceholderText('Ask a question…'), 'hello');
+    expect(screen.getByText('5/500')).toBeTruthy();
+  });
+
+  it('stops at 500 characters and highlights the counter near the limit', async () => {
+    const onSubmit = vi.fn();
+    render(<ChatInput onSubmit={onSubmit} disabled={false} />);
+    const box = screen.getByPlaceholderText('Ask a question…');
+
+    await userEvent.click(box);
+    await userEvent.paste('x'.repeat(520));
+
+    expect(box.value).toHaveLength(MAX_QUERY_LENGTH);
+    const count = screen.getByText('500/500');
+    expect(count.className).toContain('chat-input__count--low');
+
+    await userEvent.keyboard('{Enter}');
+    expect(onSubmit).toHaveBeenCalledWith('x'.repeat(MAX_QUERY_LENGTH));
+  });
 });
 
 describe('ScheduleButton interactions', () => {
@@ -102,6 +126,24 @@ describe('SubstitutionMatcher interactions', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Save substitutions' }));
 
     expect(onSave).toHaveBeenCalledWith({ 'MSSE 635': 'MSES 602' });
+  });
+
+  it('disables Reset and Save while saving', async () => {
+    const onSave = vi.fn();
+    render(
+      <SubstitutionMatcher
+        requirements={requirements}
+        courses={courses}
+        onSave={onSave}
+        isSaving
+      />,
+    );
+
+    const save = screen.getByRole('button', { name: 'Saving…' });
+    expect(save.disabled).toBe(true);
+    expect(screen.getByRole('button', { name: 'Reset' }).disabled).toBe(true);
+    await userEvent.click(save);
+    expect(onSave).not.toHaveBeenCalled();
   });
 });
 

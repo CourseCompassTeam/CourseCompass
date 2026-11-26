@@ -12,6 +12,8 @@ describe('ChatInput', () => {
     expect(html).toContain('placeholder="Ask a question…"');
     expect(html).toContain('disabled=""');
     expect(html).toContain('>Send<');
+    expect(html).toContain('maxLength="500"');
+    expect(html).toContain('>0/500<');
   });
 });
 
