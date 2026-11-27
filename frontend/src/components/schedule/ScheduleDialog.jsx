@@ -35,9 +35,9 @@ export function ScheduleButton({ scheduleService }) {
         type="button"
         className="button button--secondary"
         onClick={() => setIsOpen(true)}
-        aria-label="Schedule"
+        aria-label="Build Schedule"
       >
-        Schedule
+        Build Schedule
       </button>
       <ScheduleDialog
         scheduleService={scheduleService}

@@ -91,7 +91,7 @@ describe('ScheduleButton interactions', () => {
   it('opens the schedule dialog when clicked', async () => {
     render(<ScheduleButton scheduleService={{ buildSchedule: vi.fn() }} />);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Schedule' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Build Schedule' }));
 
     expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
   });
