@@ -44,7 +44,7 @@ describe('ScheduleButton', () => {
   it('renders a labelled Schedule button that starts closed', () => {
     const html = renderToStaticMarkup(<ScheduleButton scheduleService={{}} />);
 
-    expect(html).toContain('aria-label="Schedule"');
-    expect(html).toContain('>Schedule<');
+    expect(html).toContain('aria-label="Build Schedule"');
+    expect(html).toContain('>Build Schedule<');
   });
 });
