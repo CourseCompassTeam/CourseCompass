@@ -7,7 +7,7 @@ import { expect, test } from '@playwright/test';
 
 test('builds a schedule and exports it as a calendar file', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Schedule', exact: true }).click();
+  await page.getByRole('button', { name: 'Build Schedule', exact: true }).click();
 
   const dialog = page.getByRole('dialog', { name: 'Your schedule' });
   await expect(dialog).toBeVisible();
